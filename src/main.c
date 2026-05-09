@@ -25,18 +25,32 @@ void setup_fbo(GLuint* fbo, GLuint* tex, int width, int height) {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-float exposure = 50.0f; // Höherer Startwert
+float exposure = 1.0f;
+float offset = 0.01f;
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
-    (void)window;
     (void)xoffset;
-    if (yoffset > 0) exposure *= 1.3f; // Größerer Schritt
-    else exposure *= 0.7f;
+    // Prüfen, ob STRG (links oder rechts) gedrückt ist
+    int ctrl_pressed = glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS ||
+                       glfwGetKey(window, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS;
 
-    if (exposure < 0.001f) exposure = 0.001f;
-    if (exposure > 100000.0f) exposure = 100000.0f;
+    if (ctrl_pressed) {
+        // Offset anpassen (Kontrast/Filter)
+        if (yoffset > 0) offset *= 1.1f;
+        else offset *= 0.9f;
 
-    printf("Exposure: %.2f\n", exposure);
+        if (offset < 0.00001f) offset = 0.00001f;
+        if (offset > 10.0f) offset = 10.0f;
+        printf("Offset: %.6f\n", offset);
+    } else {
+        // Exposure anpassen (Helligkeit)
+        if (yoffset > 0) exposure *= 1.1f;
+        else exposure *= 0.9f;
+
+        if (exposure < 0.001f) exposure = 0.001f;
+        if (exposure > 1000.0f) exposure = 1000.0f;
+        printf("Exposure: %.4f\n", exposure);
+    }
 }
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
@@ -139,7 +153,8 @@ int main(int argc, char** argv) {
         glClear(GL_COLOR_BUFFER_BIT);
 
         glUseProgram(quadProgram);
-        glUniform1f(glGetUniformLocation(quadProgram, "exposure"), exposure); // Basis-Intensität
+        glUniform1f(glGetUniformLocation(quadProgram, "exposure"), exposure);
+        glUniform1f(glGetUniformLocation(quadProgram, "offset"), offset);
         glBindVertexArray(quadVAO);
         glBindTexture(GL_TEXTURE_2D, accTex);
         glDrawArrays(GL_TRIANGLES, 0, 6);

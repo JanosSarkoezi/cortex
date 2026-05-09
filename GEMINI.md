@@ -5,29 +5,27 @@
 - **Kern-Funktion**: Umwandlung von Dateibytes in 2D- (Digram) und 3D-Koordinaten (Trigram).
 - **Architektur**: C (C11), GLFW für das Windowing, OpenGL 3.3+ (Core Profile), `cglm` für Mathematik.
 
-## 2. Technische Spezifikationen & Build-System
-- **Build-System**: Meson (mit `meson.build`).
-- **Sprache**: Reines C (C11 Standard).
-- **Abhängigkeiten**:
-    - `glfw3`: Fensterverwaltung & Input.
-    - `glad` oder `glew`: OpenGL Function Loader.
-    - `cglm`: Mathematik-Bibliothek für 3D-Operationen.
-- **Ordnerstruktur**:
-    - `src/`: Quellcode (`.c`, `.h`).
-    - `shaders/`: GLSL Code.
-    - `subprojects/`: Externe Libraries (Meson Wraps).
+## 2. Technische Spezifikationen
+- **Sprache**: Reines C (kein C++), Fokus auf Performance und Speicher-Mapping.
+- **Rendering**:
+    - Primär: `GL_POINTS` für massive Datenmengen.
+    - Sekundär: Instanced Cubes für Detailansichten.
+- **Datenfluss**:
+    1. Datei via `mmap` oder `fread` in Speicher laden.
+    2. Bytes direkt in ein Vertex Buffer Object (VBO) schieben.
+    3. Shader berechnet die räumliche Position ($x, y, z = B_i, B_{i+1}, B_{i+2}$).
 
 ## 3. Road-Map & Meilensteine
-- [ ] **Phase 1**: Meson-Projekt aufsetzen, `glfw` einbinden und ein schwarzes Fenster öffnen.
-- [ ] **Phase 2**: Shader-Lade-Logik implementieren (Vertex/Fragment).
-- [ ] **Phase 3**: Datei-Einlesen (mmap) und 2D-Punktwolke rendern.
-- [ ] **Phase 4**: 3D-Integration mit `cglm` (Kamera-Steuerung).
+- [x] **Phase 1**: Basis-Window mit GLFW & OpenGL Kontext. Shader-Loader schreiben.
+- [ ] **Phase 2**: Einlesen einer Datei und Darstellung als 2D-Punktwolke (X/Y).
+- [ ] **Phase 3**: Integration von `cglm` für 3D-Kamera (Rotation/Zoom).
+- [ ] **Phase 4**: Implementierung des 3D-Trigram-Modus (X/Y/Z).
 
 ## 4. Coding-Standards
+- **Shaders**: Getrennte `.glsl` Dateien für Vertex- und Fragment-Shader.
+- **Memory**: Jeder `malloc` bekommt ein entsprechendes `free`.
 - **Naming**: `snake_case` für Funktionen und Variablen.
-- **Error Handling**: Überprüfung von Datei-Handles und Shader-Kompilierung.
-- **Build-Workflow**: `meson setup build` -> `meson compile -C build`.
 
-## 5. Dokumentation & Fortschritt
-- *Aktueller Stand*: Build-System auf Meson festgelegt, Library-Management via `subprojects/`.
-- *Nächster Schritt*: Erstellung der `meson.build` Datei.
+## 5. Bekannte Probleme & Notizen
+- *Aktueller Stand*: Phase 1 abgeschlossen. Build-System steht, OpenGL-Kontext und Shader-Loader funktionieren.
+- *Nächster Schritt*: Implementierung von `mmap` zum Einlesen von Dateien und Initialisierung des Punktwolken-Renderings (Phase 2).

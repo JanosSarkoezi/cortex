@@ -1,8 +1,8 @@
 #version 330 core
-out vec4 FragColor;
+out float FragValue;
 
 void main() {
-    // Ein klassisches "Hacker-Grün" oder Cyan für den Binary-Look
-    // RGBA: (Rot, Grün, Blau, Alpha/Transparenz)
-    FragColor = vec4(0.0, 1.0, 0.8, 1.0);
+    // Wir geben einfach 1.0 aus. 
+    // Durch additives Blending summiert sich das im Framebuffer auf.
+    FragValue = 1.0;
 }

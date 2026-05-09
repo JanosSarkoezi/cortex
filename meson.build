@@ -2,25 +2,26 @@ project('cortex', 'c',
   version : '0.1.0',
   default_options : ['warning_level=3', 'c_std=c11'])
 
+cc = meson.get_compiler('c')
+
 # Abhängigkeiten definieren
-# Wir suchen zuerst im System, falls nicht vorhanden, nutzen wir subprojects
 glfw_dep = dependency('glfw3', fallback : ['glfw', 'glfw_dep'])
 cglm_dep = dependency('cglm', fallback : ['cglm', 'cglm_dep'])
-
-# OpenGL ist meist im System vorhanden
 gl_dep = dependency('gl')
+dl_dep = cc.find_library('dl', required : false)
 
-# Falls du GLAD als Loader nutzt, füge hier die Quelldatei hinzu
-# (Den GLAD-Webgenerator nutzt man meist vorab)
 inc = include_directories('include')
 
 sources = [
   'src/main.c',
-  'src/shader_loader.c' # Falls du die Shader-Logik auslagerst
+  'src/glad.c',
+  'src/shader_loader.c',
+  'src/shader_utils.c',
+  'src/file_utils.c'
 ]
 
 executable('cortex',
   sources,
-  dependencies : [glfw_dep, cglm_dep, gl_dep],
+  dependencies : [glfw_dep, cglm_dep, gl_dep, dl_dep],
   include_directories : inc,
   install : true)

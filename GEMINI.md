@@ -17,9 +17,9 @@
 
 ## 3. Road-Map & Meilensteine
 - [x] **Phase 1**: Basis-Window mit GLFW & OpenGL Kontext. Shader-Loader schreiben.
-- [ ] **Phase 2**: Einlesen einer Datei und Darstellung als 2D-Punktwolke (X/Y).
-- [ ] **Phase 3**: Integration von `cglm` für 3D-Kamera (Rotation/Zoom).
-- [ ] **Phase 4**: Implementierung des 3D-Trigram-Modus (X/Y/Z).
+- [x] **Phase 2**: Einlesen einer Datei und Darstellung als 2D-Punktwolke (X/Y).
+- [x] **Phase 3**: Integration von `cglm` für 3D-Kamera (Rotation/Zoom).
+- [x] **Phase 4**: Implementierung des 3D-Trigram-Modus (X/Y/Z).
 
 ## 4. Coding-Standards
 - **Shaders**: Getrennte `.glsl` Dateien für Vertex- und Fragment-Shader.

@@ -17,7 +17,8 @@ sources = [
   'src/glad.c',
   'src/shader_loader.c',
   'src/shader_utils.c',
-  'src/file_utils.c'
+  'src/file_utils.c',
+  'src/camera.c'
 ]
 
 executable('cortex',

@@ -32,3 +32,4 @@
 
 ## 6. Bemerkungen zum Workflow
 - **Diskussions-Modus**: Wenn ein Satz mit einem **"D"** endet, dient dies als Signal für eine reine Diskussion. In diesem Fall sollen keine Code-Anpassungen oder Änderungen am Projekt vorgenommen werden.
+- **Protokollierung**: Alle wichtigen technischen Entscheidungen und Meilensteine werden in der `LOG.md` festgehalten. Diese Datei dient als Wissensbasis für den aktuellen Projektstand.

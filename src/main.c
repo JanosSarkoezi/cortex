@@ -26,7 +26,7 @@ void setup_fbo(GLuint* fbo, GLuint* tex, int width, int height) {
 }
 
 float exposure = 1.0f;
-float offset = 0.01f;
+float offset = 0.5f;
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
     (void)xoffset;
@@ -89,15 +89,19 @@ int main(int argc, char** argv) {
     mapped_file mf = map_file(target_file);
     if (mf.data == NULL) return -1;
 
-    // Punkt-Daten Setup
-    GLuint VAO, VBO;
+    // TBO (Texture Buffer Object) für Rohdaten
+    GLuint tbo_buffer, tbo_tex;
+    glGenBuffers(1, &tbo_buffer);
+    glBindBuffer(GL_TEXTURE_BUFFER, tbo_buffer);
+    glBufferData(GL_TEXTURE_BUFFER, mf.size, mf.data, GL_STATIC_DRAW);
+
+    glGenTextures(1, &tbo_tex);
+    glBindTexture(GL_TEXTURE_BUFFER, tbo_tex);
+    glTexBuffer(GL_TEXTURE_BUFFER, GL_R8UI, tbo_buffer);
+
+    // Leeres VAO für gl_VertexID
+    GLuint VAO;
     glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    glBindVertexArray(VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, mf.size, mf.data, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_UNSIGNED_BYTE, GL_TRUE, 3 * sizeof(unsigned char), (void*)0);
-    glEnableVertexAttribArray(0);
 
     // Fullscreen Quad Setup
     float quadVertices[] = {
@@ -128,25 +132,38 @@ int main(int argc, char** argv) {
     glEnable(GL_PROGRAM_POINT_SIZE);
     mat4 mvp = GLM_MAT4_IDENTITY_INIT;
 
+    int needs_update = 1;
+
     while (!glfwWindowShouldClose(window)) {
-        // 1. Pass: Akkumulation
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-        glViewport(0, 0, width, height);
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
+        if (needs_update) {
+            // 1. Pass: Einmalige Akkumulation (Heatmap-Generierung)
+            glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+            glViewport(0, 0, width, height);
+            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT);
 
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_ONE, GL_ONE); // Additives Blending: Werte summieren sich
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_ONE, GL_ONE);
 
-        glUseProgram(accProgram);
-        glUniformMatrix4fv(glGetUniformLocation(accProgram, "mvp"), 1, GL_FALSE, (float*)mvp);
-        glBindVertexArray(VAO);
-        glDrawArrays(GL_POINTS, 0, (mf.size / 3));
+            glUseProgram(accProgram);
+            glUniformMatrix4fv(glGetUniformLocation(accProgram, "mvp"), 1, GL_FALSE, (float*)mvp);
 
-        glDisable(GL_BLEND);
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_BUFFER, tbo_tex);
+            glUniform1i(glGetUniformLocation(accProgram, "raw_data"), 0);
 
-        // 2. Pass: Visualisierung (Post-Processing)
+            glBindVertexArray(VAO);
+            if (mf.size > 1) {
+                glDrawArrays(GL_POINTS, 0, (GLsizei)(mf.size - 1));
+            }
+
+            glDisable(GL_BLEND);
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            needs_update = 0;
+            printf("Heatmap aktualisiert.\n");
+        }
+
+        // 2. Pass: Visualisierung (Jeden Frame, Post-Processing)
         int screenW, screenH;
         glfwGetFramebufferSize(window, &screenW, &screenH);
         glViewport(0, 0, screenW, screenH);
@@ -155,8 +172,11 @@ int main(int argc, char** argv) {
         glUseProgram(quadProgram);
         glUniform1f(glGetUniformLocation(quadProgram, "exposure"), exposure);
         glUniform1f(glGetUniformLocation(quadProgram, "offset"), offset);
+
         glBindVertexArray(quadVAO);
+        glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, accTex);
+        glUniform1i(glGetUniformLocation(quadProgram, "screenTexture"), 0);
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
         glfwSwapBuffers(window);

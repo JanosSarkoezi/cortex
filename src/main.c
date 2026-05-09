@@ -16,13 +16,27 @@ void setup_fbo(GLuint* fbo, GLuint* tex, int width, int height) {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, width, height, 0, GL_RED, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    
+
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, *tex, 0);
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         fprintf(stderr, "Fehler: Framebuffer ist nicht vollständig!\n");
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+float exposure = 50.0f; // Höherer Startwert
+
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
+    (void)window;
+    (void)xoffset;
+    if (yoffset > 0) exposure *= 1.3f; // Größerer Schritt
+    else exposure *= 0.7f;
+
+    if (exposure < 0.001f) exposure = 0.001f;
+    if (exposure > 100000.0f) exposure = 100000.0f;
+
+    printf("Exposure: %.2f\n", exposure);
 }
 
 int main(int argc, char** argv) {
@@ -32,13 +46,14 @@ int main(int argc, char** argv) {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    int width = 1024, height = 1024; // Wir rendern intern auf 1024x1024 für schärfere Muster
+    int width = 1024, height = 1024;
     GLFWwindow* window = glfwCreateWindow(width, height, "Cortex - Binary Visualizer", NULL, NULL);
     if (!window) {
         glfwTerminate();
         return -1;
     }
     glfwMakeContextCurrent(window);
+    glfwSetScrollCallback(window, scroll_callback);
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) return -1;
 
@@ -115,7 +130,7 @@ int main(int argc, char** argv) {
         glClear(GL_COLOR_BUFFER_BIT);
 
         glUseProgram(quadProgram);
-        glUniform1f(glGetUniformLocation(quadProgram, "exposure"), 1.0f); // Basis-Intensität
+        glUniform1f(glGetUniformLocation(quadProgram, "exposure"), exposure); // Basis-Intensität
         glBindVertexArray(quadVAO);
         glBindTexture(GL_TEXTURE_2D, accTex);
         glDrawArrays(GL_TRIANGLES, 0, 6);

@@ -39,6 +39,14 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
     printf("Exposure: %.2f\n", exposure);
 }
 
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+    (void)scancode;
+    (void)mods;
+    if (key == GLFW_KEY_Q && action == GLFW_PRESS) {
+        glfwSetWindowShouldClose(window, GLFW_TRUE);
+    }
+}
+
 int main(int argc, char** argv) {
     if (!glfwInit()) return -1;
 
@@ -54,6 +62,7 @@ int main(int argc, char** argv) {
     }
     glfwMakeContextCurrent(window);
     glfwSetScrollCallback(window, scroll_callback);
+    glfwSetKeyCallback(window, key_callback);
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) return -1;
 

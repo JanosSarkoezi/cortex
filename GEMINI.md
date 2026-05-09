@@ -29,3 +29,6 @@
 ## 5. Bekannte Probleme & Notizen
 - *Aktueller Stand*: Phase 1 abgeschlossen. Build-System steht, OpenGL-Kontext und Shader-Loader funktionieren.
 - *Nächster Schritt*: Implementierung von `mmap` zum Einlesen von Dateien und Initialisierung des Punktwolken-Renderings (Phase 2).
+
+## 6. Bemerkungen zum Workflow
+- **Diskussions-Modus**: Wenn ein Satz mit einem **"D"** endet, dient dies als Signal für eine reine Diskussion. In diesem Fall sollen keine Code-Anpassungen oder Änderungen am Projekt vorgenommen werden.

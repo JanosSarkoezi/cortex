@@ -40,6 +40,10 @@
     - `src/shaders_embedded.h`: Enthält alle Shader-Sourcen als statische Strings.
     - Portabilität: Das Programm benötigt das Verzeichnis `shaders/` zur Laufzeit nicht mehr.
     - Refactoring: `create_shader_program_from_source` wurde hinzugefügt, um Shader direkt aus dem Speicher zu laden.
+- **Rotation-Feinschliff**:
+    - Optimierung der Kamera-Rotation auf eine reine **Arcball/Welt-Raum Logik**.
+    - Durch Linksmultiplikation der Delta-Quaternions bleibt die Rotation immer viewport-relativ.
+    - Ergebnis: Intuitivere Untersuchung von abstrakten Datenstrukturen ohne festen "Up-Vector".
 
 ## Technische Details (Wissensbasis)
 - **Shader**: `vertex.glsl` (Punkt-Generierung), `quad_fragment.glsl` (Post-Processing & Kontrast).

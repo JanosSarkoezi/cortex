@@ -6,6 +6,7 @@ uniform int mode_3d;
 uniform int coord_system_from;
 uniform int coord_system_to;
 uniform float morph_factor;
+uniform float u_point_size;
 
 const float PI = 3.14159265359;
 
@@ -47,5 +48,5 @@ void main() {
     vec3 final_pos = mix(pos_from, pos_to, smoothstep(0.0, 1.0, morph_factor));
 
     gl_Position = mvp * vec4(final_pos, 1.0);
-    gl_PointSize = 1.0;
+    gl_PointSize = u_point_size;
 }

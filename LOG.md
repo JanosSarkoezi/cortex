@@ -33,6 +33,9 @@
     - **Morph-Animation**: Fließende Übergänge zwischen den Systemen via linearer Interpolation auf der GPU.
     - `smoothstep`: Nutzt eine sanfte Beschleunigung/Verzögerung für die Morph-Animation.
     - Dauer: 0.6 Sekunden, gesteuert durch die CPU via `glfwGetTime()`.
+- **Punktgröße**: Einstellbar zwischen 1.0 und 4.0.
+    - Tasten `+` / `-` (und Numpad): Ändert die Größe der dargestellten Datenpunkte.
+    - `vertex.glsl`: Nutzt `u_point_size` zur Steuerung von `gl_PointSize`.
 
 ## Technische Details (Wissensbasis)
 - **Shader**: `vertex.glsl` (Punkt-Generierung), `quad_fragment.glsl` (Post-Processing & Kontrast).

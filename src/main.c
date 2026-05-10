@@ -27,6 +27,7 @@ void setup_fbo(GLuint* fbo, GLuint* tex, int width, int height) {
 
 float exposure = 1.0f;
 float offset = 0.5f;
+float point_size = 1.0f;
 int colormap_idx = 0; // 0: Matrix, 1: Turbo, 2: Viridis
 int coord_system_from = 0;
 int coord_system_to = 0;
@@ -116,6 +117,18 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
             camera_reset(&cam);
             needs_update = 1;
             printf("Kamera zurückgesetzt.\n");
+        }
+        if (key == GLFW_KEY_EQUAL || key == GLFW_KEY_KP_ADD) {
+            point_size += 0.5f;
+            if (point_size > 4.0f) point_size = 4.0f;
+            needs_update = 1;
+            printf("Punktgröße: %.1f\n", point_size);
+        }
+        if (key == GLFW_KEY_MINUS || key == GLFW_KEY_KP_SUBTRACT) {
+            point_size -= 0.5f;
+            if (point_size < 1.0f) point_size = 1.0f;
+            needs_update = 1;
+            printf("Punktgröße: %.1f\n", point_size);
         }
     }
 }
@@ -242,6 +255,7 @@ int main(int argc, char** argv) {
             glUniform1i(glGetUniformLocation(accProgram, "coord_system_from"), coord_system_from);
             glUniform1i(glGetUniformLocation(accProgram, "coord_system_to"), coord_system_to);
             glUniform1f(glGetUniformLocation(accProgram, "morph_factor"), morph_factor);
+            glUniform1f(glGetUniformLocation(accProgram, "u_point_size"), point_size);
             
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_BUFFER, tbo_tex);

@@ -27,6 +27,7 @@ void setup_fbo(GLuint* fbo, GLuint* tex, int width, int height) {
 
 float exposure = 1.0f;
 float offset = 0.5f;
+int colormap_idx = 0; // 0: Matrix, 1: Turbo, 2: Viridis
 int needs_update = 1;
 Camera cam;
 
@@ -84,6 +85,11 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
             cam.mode_3d = !cam.mode_3d;
             needs_update = 1;
             printf("Modus gewechselt: %s\n", cam.mode_3d ? "3D (Trigram)" : "2D (Digram)");
+        }
+        if (key == GLFW_KEY_TAB) {
+            colormap_idx = (colormap_idx + 1) % 3;
+            const char* names[] = {"Matrix", "Turbo", "Viridis"};
+            printf("Colormap gewechselt: %s\n", names[colormap_idx]);
         }
         if (key == GLFW_KEY_R) {
             camera_reset(&cam);
@@ -205,6 +211,7 @@ int main(int argc, char** argv) {
         glUseProgram(quadProgram);
         glUniform1f(glGetUniformLocation(quadProgram, "exposure"), exposure);
         glUniform1f(glGetUniformLocation(quadProgram, "offset"), offset);
+        glUniform1i(glGetUniformLocation(quadProgram, "colormap_idx"), colormap_idx);
         
         glBindVertexArray(quadVAO);
         glActiveTexture(GL_TEXTURE0);

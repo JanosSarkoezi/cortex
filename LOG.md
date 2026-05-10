@@ -21,6 +21,11 @@
     - **Reset-Funktion**: Taste `r` setzt die Kamera auf die Standardansicht zurück.
     - **Interaktion**: 2D-Zoom ermöglicht das detaillierte Betrachten von Dateistrukturen.
 
+### 2026-05-10
+- **Colormaps**: Integration von Turbo und Viridis via mathematischer GLSL-Approximation.
+- **Tab-Wechsel**: Taste `TAB` schaltet zwischen Matrix-Grün, Turbo und Viridis um.
+- **Shader-Update**: `quad_fragment.glsl` um prozedurale Colormap-Funktionen erweitert.
+
 ## Technische Details (Wissensbasis)
 - **Shader**: `vertex.glsl` (Punkt-Generierung), `quad_fragment.glsl` (Post-Processing & Kontrast).
 - **Datenstruktur**: `R8UI` für Rohdaten (TBO), `R32F` für Akkumulations-Textur (FBO), um hohe Zählwerte ohne Überlauf zu speichern.

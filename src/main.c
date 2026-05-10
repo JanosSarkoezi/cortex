@@ -2,6 +2,7 @@
 #include <GLFW/glfw3.h>
 #include <cglm/cglm.h>
 #include "shader_utils.h"
+#include "shaders_embedded.h"
 #include "file_utils.h"
 #include "camera.h"
 #include <stdio.h>
@@ -157,13 +158,35 @@ int main(int argc, char** argv) {
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) return -1;
 
-    GLuint accProgram = create_shader_program("shaders/vertex.glsl", "shaders/fragment.glsl");
-    GLuint quadProgram = create_shader_program("shaders/quad_vertex.glsl", "shaders/quad_fragment.glsl");
-    GLuint uiProgram = create_shader_program("shaders/ui_vertex.glsl", "shaders/ui_fragment.glsl");
+    GLuint accProgram = create_shader_program_from_source(vertex_shader_source, fragment_shader_source);
+    GLuint quadProgram = create_shader_program_from_source(quad_vertex_shader_source, quad_fragment_shader_source);
+    GLuint uiProgram = create_shader_program_from_source(ui_vertex_shader_source, ui_fragment_shader_source);
 
-    const char* target_file = (argc > 1) ? argv[1] : argv[0];
+    if (argc < 2) {
+        fprintf(stderr, "Nutzung: %s <dateipfad>\n\n", argv[0]);
+        fprintf(stderr, "Steuerung:\n");
+        fprintf(stderr, "  SPACE       - Wechsel zwischen 2D (Digram) und 3D (Trigram)\n");
+        fprintf(stderr, "  TAB         - Colormap wechseln (Matrix, Turbo, Viridis)\n");
+        fprintf(stderr, "  K           - Koordinatensystem wechseln (Kartesisch, Zylindrisch, Sphärisch)\n");
+        fprintf(stderr, "  H           - UI / Farbskala ein-/ausblenden\n");
+        fprintf(stderr, "  R           - Kamera zurücksetzen\n");
+        fprintf(stderr, "  + / -       - Punktgröße anpassen (1.0 - 4.0)\n");
+        fprintf(stderr, "  Q           - Programm beenden\n\n");
+        fprintf(stderr, "Maus:\n");
+        fprintf(stderr, "  Scrollen    - Zoom\n");
+        fprintf(stderr, "  STRG+Scroll - Kontrast/Offset anpassen\n");
+        fprintf(stderr, "  Links-Klick - Kamera rotieren (im 3D Modus)\n\n");
+        fprintf(stderr, "Beispiel: %s /bin/ls\n", argv[0]);
+        glfwTerminate();
+        return 1;
+    }
+
+    const char* target_file = argv[1];
     mapped_file mf = map_file(target_file);
-    if (mf.data == NULL) return -1;
+    if (mf.data == NULL) {
+        glfwTerminate();
+        return -1;
+    }
 
     GLuint tbo_buffer, tbo_tex;
     glGenBuffers(1, &tbo_buffer);

@@ -36,6 +36,10 @@
 - **Punktgröße**: Einstellbar zwischen 1.0 und 4.0.
     - Tasten `+` / `-` (und Numpad): Ändert die Größe der dargestellten Datenpunkte.
     - `vertex.glsl`: Nutzt `u_point_size` zur Steuerung von `gl_PointSize`.
+- **Shader-Embedding**: Alle GLSL-Shader wurden direkt in den C-Binary eingebettet.
+    - `src/shaders_embedded.h`: Enthält alle Shader-Sourcen als statische Strings.
+    - Portabilität: Das Programm benötigt das Verzeichnis `shaders/` zur Laufzeit nicht mehr.
+    - Refactoring: `create_shader_program_from_source` wurde hinzugefügt, um Shader direkt aus dem Speicher zu laden.
 
 ## Technische Details (Wissensbasis)
 - **Shader**: `vertex.glsl` (Punkt-Generierung), `quad_fragment.glsl` (Post-Processing & Kontrast).

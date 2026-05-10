@@ -2,8 +2,7 @@
 #include <math.h>
 
 void camera_init(Camera* cam) {
-    cam->yaw = 0.0f;
-    cam->pitch = 0.0f;
+    glm_quat_identity(cam->orientation);
     cam->distance = 2.5f;
     cam->aspect = 1.0f;
     cam->mode_3d = 0;
@@ -15,30 +14,44 @@ void camera_get_mvp(Camera* cam, mat4 mvp) {
     if (cam->mode_3d) {
         glm_perspective(glm_rad(45.0f), cam->aspect, 0.1f, 100.0f, projection);
     } else {
-        // In 2D nutzen wir Ortho, aber lassen den Zoom (distance) einfließen
         float scale = cam->distance * 0.5f;
         glm_ortho(-scale * cam->aspect, scale * cam->aspect, -scale, scale, -10.0f, 10.0f, projection);
     }
 
-    // View Matrix (Orbital)
-    vec3 eye;
-    eye[0] = cam->distance * cos(glm_rad(cam->pitch)) * sin(glm_rad(cam->yaw));
-    eye[1] = cam->distance * sin(glm_rad(cam->pitch));
-    eye[2] = cam->distance * cos(glm_rad(cam->pitch)) * cos(glm_rad(cam->yaw));
-
-    vec3 center = {0.0f, 0.0f, 0.0f};
-    vec3 up = {0.0f, 1.0f, 0.0f};
-    glm_lookat(eye, center, up, view);
+    // View Matrix mit Quaternions
+    glm_mat4_identity(view);
+    
+    // 1. In die Ferne rücken (Z-Achse)
+    glm_translate_z(view, -cam->distance);
+    
+    // 2. Rotation anwenden
+    mat4 rotation_mat;
+    glm_quat_mat4(cam->orientation, rotation_mat);
+    glm_mat4_mul(view, rotation_mat, view);
 
     glm_mat4_mul(projection, view, mvp);
 }
 
 void camera_rotate(Camera* cam, float dx, float dy) {
-    cam->yaw -= dx * 0.5f;
-    cam->pitch += dy * 0.5f;
+    // Empfindlichkeit
+    float sensitivity = 0.005f;
 
-    if (cam->pitch > 89.0f) cam->pitch = 89.0f;
-    if (cam->pitch < -89.0f) cam->pitch = -89.0f;
+    versor q_x, q_y;
+    vec3 axis_x = {1.0f, 0.0f, 0.0f};
+    vec3 axis_y = {0.0f, 1.0f, 0.0f};
+
+    // Rotation um die X-Achse (Pitch) - lokal
+    glm_quatv(q_x, dy * sensitivity, axis_x);
+    // Rotation um die Y-Achse (Yaw) - global (für natürlicheres orbitales Gefühl)
+    glm_quatv(q_y, dx * sensitivity, axis_y);
+
+    // Multiplikation: q_x * orientation * q_y
+    // q_x von links = lokale Rotation
+    // q_y von rechts = globale Rotation
+    glm_quat_mul(q_x, cam->orientation, cam->orientation);
+    glm_quat_mul(cam->orientation, q_y, cam->orientation);
+
+    glm_quat_normalize(cam->orientation);
 }
 
 void camera_zoom(Camera* cam, float delta) {
@@ -50,7 +63,6 @@ void camera_zoom(Camera* cam, float delta) {
 }
 
 void camera_reset(Camera* cam) {
-    cam->yaw = 0.0f;
-    cam->pitch = 0.0f;
+    glm_quat_identity(cam->orientation);
     cam->distance = 2.5f;
 }

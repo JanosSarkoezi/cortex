@@ -4,8 +4,7 @@
 #include <cglm/cglm.h>
 
 typedef struct {
-    float yaw;
-    float pitch;
+    versor orientation;
     float distance;
     float aspect;
     int mode_3d;

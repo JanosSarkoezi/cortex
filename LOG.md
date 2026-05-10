@@ -16,10 +16,10 @@
     - Lösung: Der schwere Akkumulations-Pass (Heatmap-Generierung) läuft nun statisch (einmalig). Der Main-Loop zeigt nur das fertige Textur-Resultat an.
     - Ergebnis: Butterweiche Mausbewegung bei voller Detailtiefe.
 - **Kamera-Refactoring**:
-    - Kamera-Logik in `camera.c` und `camera.h` ausgelagert.
-    - **Konsistente Navigation**: Zoom und Rotation sind nun sowohl im 2D- als auch im 3D-Modus verfügbar.
-    - **Reset-Funktion**: Taste `r` setzt die Kamera auf die Standardansicht zurück.
-    - **Interaktion**: 2D-Zoom ermöglicht das detaillierte Betrachten von Dateistrukturen.
+    - Umstellung von Euler-Winkeln (Yaw/Pitch) auf **Quaternions** (`versor`).
+    - Behebung des Gimbal-Lock-Problems.
+    - Implementierung einer hybriden Rotation: Lokaler Pitch und globaler Yaw für intuitive Bedienung.
+    - Nutzung von `cglm` nativen Quaternion-Funktionen für Stabilität und Performance.
 
 ### 2026-05-10
 - **Colormaps**: Integration von Turbo und Viridis via mathematischer GLSL-Approximation.

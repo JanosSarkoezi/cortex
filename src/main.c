@@ -37,6 +37,7 @@ float morph_duration = 0.6f;
 double last_morph_time = 0.0;
 int show_ui = 1;
 int needs_update = 1;
+int current_view = 0;
 Camera cam;
 
 double last_x, last_y;
@@ -121,16 +122,19 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         }
         if (key == GLFW_KEY_1) {
             camera_set_view(&cam, 0);
+            current_view = 0; // XY
             needs_update = 1;
             printf("Ansicht: XY-Ebene\n");
         }
         if (key == GLFW_KEY_2) {
             camera_set_view(&cam, 1);
+            current_view = 1; // YZ
             needs_update = 1;
             printf("Ansicht: YZ-Ebene\n");
         }
         if (key == GLFW_KEY_3) {
             camera_set_view(&cam, 2);
+            current_view = 2; // ZX
             needs_update = 1;
             printf("Ansicht: ZX-Ebene\n");
         }
@@ -163,9 +167,9 @@ int main(int argc, char** argv) {
         return -1;
     }
     glfwMakeContextCurrent(window);
-    
+
     camera_init(&cam);
-    
+
     glfwSetScrollCallback(window, scroll_callback);
     glfwSetKeyCallback(window, key_callback);
     glfwSetMouseButtonCallback(window, mouse_button_callback);
@@ -270,13 +274,13 @@ int main(int argc, char** argv) {
             morph_factor += dt / morph_duration;
             if (morph_factor >= 1.0f) {
                 morph_factor = 1.0f;
-                coord_system_from = coord_system_to; 
+                coord_system_from = coord_system_to;
             }
             needs_update = 1;
         }
 
         if (cam.anim_factor < 1.0f) {
-            cam.anim_factor += dt / 0.5f; 
+            cam.anim_factor += dt / 0.5f;
             if (cam.anim_factor >= 1.0f) {
                 cam.anim_factor = 1.0f;
                 glm_quat_copy(cam.target_orientation, cam.orientation);
@@ -302,12 +306,14 @@ int main(int argc, char** argv) {
 
             glUseProgram(accProgram);
             glUniformMatrix4fv(glGetUniformLocation(accProgram, "mvp"), 1, GL_FALSE, (float*)mvp);
-            glUniform1i(glGetUniformLocation(accProgram, "mode_3d"), cam.mode_3d);
+
             glUniform1i(glGetUniformLocation(accProgram, "coord_system_from"), coord_system_from);
             glUniform1i(glGetUniformLocation(accProgram, "coord_system_to"), coord_system_to);
             glUniform1f(glGetUniformLocation(accProgram, "morph_factor"), morph_factor);
+            glUniform1i(glGetUniformLocation(accProgram, "mode_3d"), cam.mode_3d);
+            glUniform1i(glGetUniformLocation(accProgram, "projection_view"), current_view);
             glUniform1f(glGetUniformLocation(accProgram, "u_point_size"), point_size);
-            
+
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_BUFFER, tbo_tex);
             glUniform1i(glGetUniformLocation(accProgram, "raw_data"), 0);
@@ -332,7 +338,7 @@ int main(int argc, char** argv) {
         glUniform1f(glGetUniformLocation(quadProgram, "exposure"), exposure);
         glUniform1f(glGetUniformLocation(quadProgram, "offset"), offset);
         glUniform1i(glGetUniformLocation(quadProgram, "colormap_idx"), colormap_idx);
-        
+
         glBindVertexArray(quadVAO);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, accTex);

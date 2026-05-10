@@ -32,6 +32,7 @@ float point_size = 1.0f;
 int colormap_idx = 0; // 0: Matrix, 1: Turbo, 2: Viridis
 int coord_system_from = 0;
 int coord_system_to = 0;
+int is_projected = 0;
 float morph_factor = 1.0f;
 float morph_duration = 0.6f;
 double last_morph_time = 0.0;
@@ -108,8 +109,22 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
     // --- MODUS-WECHSEL (2D / 3D) ---
     if (key == GLFW_KEY_SPACE) {
         cam.mode_3d = !cam.mode_3d;
-        trigger_transition(); // Startet die Morph-Animation
-        printf("Modus gewechselt: %s\n", cam.mode_3d ? "3D (Perspektivisch)" : "2D (Orthografisch)");
+        needs_update = 1; // Nur Kamera-Update, kein Morphing nötig
+        printf("Kamera: %s\n", cam.mode_3d ? "Perspektivisch" : "Orthografisch");
+    }
+
+    if (key == GLFW_KEY_P) {
+        is_projected = !is_projected; // Toggle Projektion
+        trigger_transition(); // Startet Morphing der Punkte
+        printf("Projektion: %s\n", is_projected ? "AN" : "AUS");
+    }
+
+    if (key == GLFW_KEY_1 || key == GLFW_KEY_2 || key == GLFW_KEY_3) {
+        current_view = (key == GLFW_KEY_1) ? 0 : (key == GLFW_KEY_2 ? 1 : 2);
+        camera_set_view(&cam, current_view); // Kamera ausrichten
+
+        if (is_projected) trigger_transition(); // Nur morphen, wenn Projektion aktiv ist
+        else needs_update = 1;
     }
 
     // --- KOORDINATENSYSTEME ---
@@ -126,19 +141,6 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         }
     }
 
-    // --- EBENEN-AUSWAHL / PROJEKTIONEN ---
-    if (key == GLFW_KEY_1 || key == GLFW_KEY_2 || key == GLFW_KEY_3) {
-        current_view = (key == GLFW_KEY_1) ? 0 : (key == GLFW_KEY_2 ? 1 : 2);
-
-        // 1. Kamera zur Ebene ausrichten (sanfte Rotation via anim_factor)
-        camera_set_view(&cam, current_view);
-
-        // 2. Punkt-Morphing im Shader triggern
-        trigger_transition();
-
-        const char* views[] = {"Ebene 1 (z.B. XY)", "Ebene 2 (z.B. YZ)", "Ebene 3 (z.B. ZX)"};
-        printf("Ansicht gewechselt: %s\n", views[current_view]);
-    }
 
     // --- KAMERA & DARSTELLUNG ---
     if (key == GLFW_KEY_R) {
@@ -324,6 +326,7 @@ int main(int argc, char** argv) {
             glUniform1i(glGetUniformLocation(accProgram, "mode_3d"), cam.mode_3d);
             glUniform1i(glGetUniformLocation(accProgram, "projection_view"), current_view);
             glUniform1f(glGetUniformLocation(accProgram, "u_point_size"), point_size);
+            glUniform1i(glGetUniformLocation(accProgram, "u_is_projected"), is_projected);
 
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_BUFFER, tbo_tex);

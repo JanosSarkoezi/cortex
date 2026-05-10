@@ -85,71 +85,82 @@ void cursor_pos_callback(GLFWwindow* window, double xpos, double ypos) {
     }
 }
 
+void trigger_transition() {
+    morph_factor = 0.0f;
+    last_morph_time = glfwGetTime();
+    needs_update = 1;
+}
+
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     (void)scancode;
     (void)mods;
-    if (action == GLFW_PRESS) {
-        if (key == GLFW_KEY_Q) glfwSetWindowShouldClose(window, GLFW_TRUE);
-        if (key == GLFW_KEY_SPACE) {
-            cam.mode_3d = !cam.mode_3d;
-            needs_update = 1;
-            printf("Modus gewechselt: %s\n", cam.mode_3d ? "3D (Trigram)" : "2D (Digram)");
+
+    // Wir reagieren nur auf den ersten Tastendruck
+    if (action != GLFW_PRESS) return;
+
+    // --- PROGRAMM-STEUERUNG ---
+    if (key == GLFW_KEY_Q) glfwSetWindowShouldClose(window, GLFW_TRUE);
+    if (key == GLFW_KEY_H) {
+        show_ui = !show_ui;
+        printf("UI %s\n", show_ui ? "eingeblendet" : "ausgeblendet");
+    }
+
+    // --- MODUS-WECHSEL (2D / 3D) ---
+    if (key == GLFW_KEY_SPACE) {
+        cam.mode_3d = !cam.mode_3d;
+        trigger_transition(); // Startet die Morph-Animation
+        printf("Modus gewechselt: %s\n", cam.mode_3d ? "3D (Perspektivisch)" : "2D (Orthografisch)");
+    }
+
+    // --- KOORDINATENSYSTEME ---
+    if (key == GLFW_KEY_K || key == GLFW_KEY_Z || key == GLFW_KEY_S) {
+        int target_sys = (key == GLFW_KEY_K) ? 0 : (key == GLFW_KEY_Z ? 1 : 2);
+
+        if (coord_system_to != target_sys) {
+            coord_system_from = coord_system_to;
+            coord_system_to = target_sys;
+            trigger_transition(); // Morph zwischen den Systemen
+
+            const char* names[] = {"Kartesisch", "Zylindrisch", "Sphärisch"};
+            printf("Systemwechsel: %s -> %s\n", names[coord_system_from], names[coord_system_to]);
         }
-        if (key == GLFW_KEY_TAB) {
-            colormap_idx = (colormap_idx + 1) % 3;
-            const char* names[] = {"Matrix", "Turbo", "Viridis"};
-            printf("Colormap gewechselt: %s\n", names[colormap_idx]);
-        }
-        if (key == GLFW_KEY_H) {
-            show_ui = !show_ui;
-            printf("UI %s\n", show_ui ? "eingeblendet" : "ausgeblendet");
-        }
-        if (key == GLFW_KEY_K) {
-            if (morph_factor >= 1.0f) {
-                coord_system_from = coord_system_to;
-                coord_system_to = (coord_system_to + 1) % 3;
-                morph_factor = 0.0f;
-                last_morph_time = glfwGetTime();
-                needs_update = 1;
-                const char* names[] = {"Kartesisch", "Zylindrisch", "Sphärisch"};
-                printf("Morph gestartet: %s -> %s\n", names[coord_system_from], names[coord_system_to]);
-            }
-        }
-        if (key == GLFW_KEY_R) {
-            camera_reset(&cam);
-            needs_update = 1;
-            printf("Kamera zurückgesetzt.\n");
-        }
-        if (key == GLFW_KEY_1) {
-            camera_set_view(&cam, 0);
-            current_view = 0; // XY
-            needs_update = 1;
-            printf("Ansicht: XY-Ebene\n");
-        }
-        if (key == GLFW_KEY_2) {
-            camera_set_view(&cam, 1);
-            current_view = 1; // YZ
-            needs_update = 1;
-            printf("Ansicht: YZ-Ebene\n");
-        }
-        if (key == GLFW_KEY_3) {
-            camera_set_view(&cam, 2);
-            current_view = 2; // ZX
-            needs_update = 1;
-            printf("Ansicht: ZX-Ebene\n");
-        }
-        if (key == GLFW_KEY_EQUAL || key == GLFW_KEY_KP_ADD) {
-            point_size += 0.5f;
-            if (point_size > 4.0f) point_size = 4.0f;
-            needs_update = 1;
-            printf("Punktgröße: %.1f\n", point_size);
-        }
-        if (key == GLFW_KEY_MINUS || key == GLFW_KEY_KP_SUBTRACT) {
-            point_size -= 0.5f;
-            if (point_size < 1.0f) point_size = 1.0f;
-            needs_update = 1;
-            printf("Punktgröße: %.1f\n", point_size);
-        }
+    }
+
+    // --- EBENEN-AUSWAHL / PROJEKTIONEN ---
+    if (key == GLFW_KEY_1 || key == GLFW_KEY_2 || key == GLFW_KEY_3) {
+        current_view = (key == GLFW_KEY_1) ? 0 : (key == GLFW_KEY_2 ? 1 : 2);
+
+        // 1. Kamera zur Ebene ausrichten (sanfte Rotation via anim_factor)
+        camera_set_view(&cam, current_view);
+
+        // 2. Punkt-Morphing im Shader triggern
+        trigger_transition();
+
+        const char* views[] = {"Ebene 1 (z.B. XY)", "Ebene 2 (z.B. YZ)", "Ebene 3 (z.B. ZX)"};
+        printf("Ansicht gewechselt: %s\n", views[current_view]);
+    }
+
+    // --- KAMERA & DARSTELLUNG ---
+    if (key == GLFW_KEY_R) {
+        camera_reset(&cam); // Setzt Orientierung und Zoom zurück
+        trigger_transition();
+        printf("Kamera zurückgesetzt.\n");
+    }
+
+    if (key == GLFW_KEY_TAB) {
+        colormap_idx = (colormap_idx + 1) % 3;
+        const char* names[] = {"Matrix", "Turbo", "Viridis"};
+        printf("Colormap gewechselt: %s\n", names[colormap_idx]);
+        needs_update = 1;
+    }
+
+    if (key == GLFW_KEY_EQUAL || key == GLFW_KEY_KP_ADD) {
+        point_size = (point_size < 4.0f) ? point_size + 0.5f : 4.0f;
+        needs_update = 1;
+    }
+    if (key == GLFW_KEY_MINUS || key == GLFW_KEY_KP_SUBTRACT) {
+        point_size = (point_size > 1.0f) ? point_size - 0.5f : 1.0f;
+        needs_update = 1;
     }
 }
 

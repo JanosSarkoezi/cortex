@@ -28,6 +28,11 @@ void setup_fbo(GLuint* fbo, GLuint* tex, int width, int height) {
 float exposure = 1.0f;
 float offset = 0.5f;
 int colormap_idx = 0; // 0: Matrix, 1: Turbo, 2: Viridis
+int coord_system_from = 0;
+int coord_system_to = 0;
+float morph_factor = 1.0f;
+float morph_duration = 0.6f;
+double last_morph_time = 0.0;
 int show_ui = 1;
 int needs_update = 1;
 Camera cam;
@@ -95,6 +100,17 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         if (key == GLFW_KEY_H) {
             show_ui = !show_ui;
             printf("UI %s\n", show_ui ? "eingeblendet" : "ausgeblendet");
+        }
+        if (key == GLFW_KEY_K) {
+            if (morph_factor >= 1.0f) {
+                coord_system_from = coord_system_to;
+                coord_system_to = (coord_system_to + 1) % 3;
+                morph_factor = 0.0f;
+                last_morph_time = glfwGetTime();
+                needs_update = 1;
+                const char* names[] = {"Kartesisch", "Zylindrisch", "Sphärisch"};
+                printf("Morph gestartet: %s -> %s\n", names[coord_system_from], names[coord_system_to]);
+            }
         }
         if (key == GLFW_KEY_R) {
             camera_reset(&cam);
@@ -195,6 +211,15 @@ int main(int argc, char** argv) {
     glEnable(GL_PROGRAM_POINT_SIZE);
 
     while (!glfwWindowShouldClose(window)) {
+        double current_time = glfwGetTime();
+        if (morph_factor < 1.0f) {
+            float dt = (float)(current_time - last_morph_time);
+            last_morph_time = current_time;
+            morph_factor += dt / morph_duration;
+            if (morph_factor > 1.0f) morph_factor = 1.0f;
+            needs_update = 1;
+        }
+
         if (needs_update) {
             int screenW, screenH;
             glfwGetFramebufferSize(window, &screenW, &screenH);
@@ -214,6 +239,9 @@ int main(int argc, char** argv) {
             glUseProgram(accProgram);
             glUniformMatrix4fv(glGetUniformLocation(accProgram, "mvp"), 1, GL_FALSE, (float*)mvp);
             glUniform1i(glGetUniformLocation(accProgram, "mode_3d"), cam.mode_3d);
+            glUniform1i(glGetUniformLocation(accProgram, "coord_system_from"), coord_system_from);
+            glUniform1i(glGetUniformLocation(accProgram, "coord_system_to"), coord_system_to);
+            glUniform1f(glGetUniformLocation(accProgram, "morph_factor"), morph_factor);
             
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_BUFFER, tbo_tex);

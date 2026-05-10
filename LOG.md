@@ -28,6 +28,11 @@
     - Taste `H`: Blendet die UI ein/aus.
     - Colormap-Skala: Ein vertikaler Balken am rechten Rand zeigt die aktuelle Farbskala (Turbo, Viridis oder Matrix-Grün).
 - **Shader-Update**: `ui_vertex.glsl` und `ui_fragment.glsl` für prozedurale UI-Elemente implementiert.
+- **Koordinatensysteme**: Kartesisch, Zylindrisch und Sphärisch hinzugefügt.
+    - Taste `K`: Wechselt das Mapping der Bytes auf die Raumkoordinaten.
+    - **Morph-Animation**: Fließende Übergänge zwischen den Systemen via linearer Interpolation auf der GPU.
+    - `smoothstep`: Nutzt eine sanfte Beschleunigung/Verzögerung für die Morph-Animation.
+    - Dauer: 0.6 Sekunden, gesteuert durch die CPU via `glfwGetTime()`.
 
 ## Technische Details (Wissensbasis)
 - **Shader**: `vertex.glsl` (Punkt-Generierung), `quad_fragment.glsl` (Post-Processing & Kontrast).

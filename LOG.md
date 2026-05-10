@@ -40,10 +40,17 @@
     - `src/shaders_embedded.h`: Enthält alle Shader-Sourcen als statische Strings.
     - Portabilität: Das Programm benötigt das Verzeichnis `shaders/` zur Laufzeit nicht mehr.
     - Refactoring: `create_shader_program_from_source` wurde hinzugefügt, um Shader direkt aus dem Speicher zu laden.
+- **Projektionsebenen**:
+    - Tasten `1`, `2`, `3`: Sofortiges Ausrichten der Kamera auf XY-, YZ- oder ZX-Ebene.
+    - Funktioniert sowohl im 2D (Ortho) als auch im 3D (Perspektive) Modus.
+    - `vertex.glsl`: Berechnet nun immer Trigramm-Koordinaten, um Projektions-Wechsel in allen Modi zu unterstützen.
 - **Rotation-Feinschliff**:
     - Optimierung der Kamera-Rotation auf eine reine **Arcball/Welt-Raum Logik**.
     - Durch Linksmultiplikation der Delta-Quaternions bleibt die Rotation immer viewport-relativ.
     - Ergebnis: Intuitivere Untersuchung von abstrakten Datenstrukturen ohne festen "Up-Vector".
+- **Kamera-Animation**:
+    - `glm_quat_slerp` für flüssige Übergänge beim Wechsel der Projektionsebenen und beim Reset (`R`).
+    - Präzisions-Fix: Explizites Setzen der Ziel-Orientierung nach Abschluss der Animation zur Vermeidung von Rundungsfehlern.
 
 ## Technische Details (Wissensbasis)
 - **Shader**: `vertex.glsl` (Punkt-Generierung), `quad_fragment.glsl` (Post-Processing & Kontrast).

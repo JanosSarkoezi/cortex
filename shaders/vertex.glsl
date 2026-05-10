@@ -40,7 +40,9 @@ vec3 get_pos(int system, uint b1, uint b2, uint b3) {
 void main() {
     uint b1 = texelFetch(raw_data, gl_VertexID).r;
     uint b2 = texelFetch(raw_data, gl_VertexID + 1).r;
-    uint b3 = (mode_3d != 0) ? texelFetch(raw_data, gl_VertexID + 2).r : 0u;
+    // Wir lesen den 3. Byte immer, wenn wir genug Daten haben, 
+    // um die Projektionen YZ und ZX auch im Ortho-Modus zu ermöglichen.
+    uint b3 = texelFetch(raw_data, gl_VertexID + 2).r;
 
     vec3 pos_from = get_pos(coord_system_from, b1, b2, b3);
     vec3 pos_to = get_pos(coord_system_to, b1, b2, b3);

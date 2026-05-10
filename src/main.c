@@ -119,6 +119,21 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
             needs_update = 1;
             printf("Kamera zurückgesetzt.\n");
         }
+        if (key == GLFW_KEY_1) {
+            camera_set_view(&cam, 0);
+            needs_update = 1;
+            printf("Ansicht: XY-Ebene\n");
+        }
+        if (key == GLFW_KEY_2) {
+            camera_set_view(&cam, 1);
+            needs_update = 1;
+            printf("Ansicht: YZ-Ebene\n");
+        }
+        if (key == GLFW_KEY_3) {
+            camera_set_view(&cam, 2);
+            needs_update = 1;
+            printf("Ansicht: ZX-Ebene\n");
+        }
         if (key == GLFW_KEY_EQUAL || key == GLFW_KEY_KP_ADD) {
             point_size += 0.5f;
             if (point_size > 4.0f) point_size = 4.0f;
@@ -248,11 +263,24 @@ int main(int argc, char** argv) {
 
     while (!glfwWindowShouldClose(window)) {
         double current_time = glfwGetTime();
+        float dt = (float)(current_time - last_morph_time);
+        last_morph_time = current_time;
+
         if (morph_factor < 1.0f) {
-            float dt = (float)(current_time - last_morph_time);
-            last_morph_time = current_time;
             morph_factor += dt / morph_duration;
-            if (morph_factor > 1.0f) morph_factor = 1.0f;
+            if (morph_factor >= 1.0f) {
+                morph_factor = 1.0f;
+                coord_system_from = coord_system_to; 
+            }
+            needs_update = 1;
+        }
+
+        if (cam.anim_factor < 1.0f) {
+            cam.anim_factor += dt / 0.5f; 
+            if (cam.anim_factor >= 1.0f) {
+                cam.anim_factor = 1.0f;
+                glm_quat_copy(cam.target_orientation, cam.orientation);
+            }
             needs_update = 1;
         }
 

@@ -28,6 +28,7 @@ void setup_fbo(GLuint* fbo, GLuint* tex, int width, int height) {
 float exposure = 1.0f;
 float offset = 0.5f;
 int colormap_idx = 0; // 0: Matrix, 1: Turbo, 2: Viridis
+int show_ui = 1;
 int needs_update = 1;
 Camera cam;
 
@@ -91,6 +92,10 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
             const char* names[] = {"Matrix", "Turbo", "Viridis"};
             printf("Colormap gewechselt: %s\n", names[colormap_idx]);
         }
+        if (key == GLFW_KEY_H) {
+            show_ui = !show_ui;
+            printf("UI %s\n", show_ui ? "eingeblendet" : "ausgeblendet");
+        }
         if (key == GLFW_KEY_R) {
             camera_reset(&cam);
             needs_update = 1;
@@ -125,6 +130,7 @@ int main(int argc, char** argv) {
 
     GLuint accProgram = create_shader_program("shaders/vertex.glsl", "shaders/fragment.glsl");
     GLuint quadProgram = create_shader_program("shaders/quad_vertex.glsl", "shaders/quad_fragment.glsl");
+    GLuint uiProgram = create_shader_program("shaders/ui_vertex.glsl", "shaders/ui_fragment.glsl");
 
     const char* target_file = (argc > 1) ? argv[1] : argv[0];
     mapped_file mf = map_file(target_file);
@@ -157,6 +163,27 @@ int main(int argc, char** argv) {
     glBindVertexArray(quadVAO);
     glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+
+    // UI VAO für die Skala (Rechter Rand)
+    float uiVertices[] = {
+        0.85f,  0.8f,  0.0f, 1.0f,
+        0.85f, -0.8f,  0.0f, 0.0f,
+        0.95f, -0.8f,  1.0f, 0.0f,
+
+        0.85f,  0.8f,  0.0f, 1.0f,
+        0.95f, -0.8f,  1.0f, 0.0f,
+        0.95f,  0.8f,  1.0f, 1.0f
+    };
+    GLuint uiVAO, uiVBO;
+    glGenVertexArrays(1, &uiVAO);
+    glGenBuffers(1, &uiVBO);
+    glBindVertexArray(uiVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, uiVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(uiVertices), &uiVertices, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(1);
@@ -218,6 +245,13 @@ int main(int argc, char** argv) {
         glBindTexture(GL_TEXTURE_2D, accTex);
         glUniform1i(glGetUniformLocation(quadProgram, "screenTexture"), 0);
         glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        if (show_ui) {
+            glUseProgram(uiProgram);
+            glUniform1i(glGetUniformLocation(uiProgram, "colormap_idx"), colormap_idx);
+            glBindVertexArray(uiVAO);
+            glDrawArrays(GL_TRIANGLES, 0, 6);
+        }
 
         glfwSwapBuffers(window);
         glfwPollEvents();

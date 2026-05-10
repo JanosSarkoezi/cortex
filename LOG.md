@@ -24,7 +24,10 @@
 ### 2026-05-10
 - **Colormaps**: Integration von Turbo und Viridis via mathematischer GLSL-Approximation.
 - **Tab-Wechsel**: Taste `TAB` schaltet zwischen Matrix-Grün, Turbo und Viridis um.
-- **Shader-Update**: `quad_fragment.glsl` um prozedurale Colormap-Funktionen erweitert.
+- **UI-Ebene**: Neue Layer für HUD-Elemente hinzugefügt.
+    - Taste `H`: Blendet die UI ein/aus.
+    - Colormap-Skala: Ein vertikaler Balken am rechten Rand zeigt die aktuelle Farbskala (Turbo, Viridis oder Matrix-Grün).
+- **Shader-Update**: `ui_vertex.glsl` und `ui_fragment.glsl` für prozedurale UI-Elemente implementiert.
 
 ## Technische Details (Wissensbasis)
 - **Shader**: `vertex.glsl` (Punkt-Generierung), `quad_fragment.glsl` (Post-Processing & Kontrast).

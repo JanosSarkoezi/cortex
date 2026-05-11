@@ -32,9 +32,10 @@ float point_size = 1.0f;
 int colormap_idx = 0; // 0: Matrix, 1: Turbo, 2: Viridis
 int coord_system_from = 0;
 int coord_system_to = 0;
-int is_projected = 0;
+int proj_from = 0;
+int proj_to = 0;
 float morph_factor = 1.0f;
-float morph_duration = 0.6f;
+float morph_duration = 2.0f;
 double last_morph_time = 0.0;
 int show_ui = 1;
 int needs_update = 1;
@@ -114,17 +115,22 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
     }
 
     if (key == GLFW_KEY_P) {
-        is_projected = !is_projected; // Toggle Projektion
+        proj_from = proj_to;
+        proj_to = !proj_to;
         trigger_transition(); // Startet Morphing der Punkte
-        printf("Projektion: %s\n", is_projected ? "AN" : "AUS");
+        printf("Projektion: %s\n", proj_to ? "AN" : "AUS");
     }
 
     if (key == GLFW_KEY_1 || key == GLFW_KEY_2 || key == GLFW_KEY_3) {
         current_view = (key == GLFW_KEY_1) ? 0 : (key == GLFW_KEY_2 ? 1 : 2);
         camera_set_view(&cam, current_view); // Kamera ausrichten
 
-        if (is_projected) trigger_transition(); // Nur morphen, wenn Projektion aktiv ist
-        else needs_update = 1;
+        if (proj_to) {
+            proj_from = proj_to; // Bleibe in Projektion
+            trigger_transition(); // Nur morphen, wenn Projektion aktiv ist
+        } else {
+            needs_update = 1;
+        }
     }
 
     // --- KOORDINATENSYSTEME ---
@@ -134,6 +140,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         if (coord_system_to != target_sys) {
             coord_system_from = coord_system_to;
             coord_system_to = target_sys;
+            proj_from = proj_to; // Aktuellen Projektionszustand beibehalten
             trigger_transition(); // Morph zwischen den Systemen
 
             const char* names[] = {"Kartesisch", "Zylindrisch", "Sphärisch"};
@@ -326,7 +333,8 @@ int main(int argc, char** argv) {
             glUniform1i(glGetUniformLocation(accProgram, "mode_3d"), cam.mode_3d);
             glUniform1i(glGetUniformLocation(accProgram, "projection_view"), current_view);
             glUniform1f(glGetUniformLocation(accProgram, "u_point_size"), point_size);
-            glUniform1i(glGetUniformLocation(accProgram, "u_is_projected"), is_projected);
+            glUniform1i(glGetUniformLocation(accProgram, "u_proj_from"), proj_from);
+            glUniform1i(glGetUniformLocation(accProgram, "u_proj_to"), proj_to);
 
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_BUFFER, tbo_tex);

@@ -60,6 +60,10 @@
     - **Zylindrisches System**:
         - Radiale Verteilung ($r$): Anwendung der Quadratwurzel `sqrt(v2)`. Gewährleistet eine homogene Verteilung über die Kreisfläche (Grundfläche des Zylinders).
     - **Ziel**: Elimination von Artefakten, die durch die Koordinatentransformation entstehen. Reine Zufallsdaten erscheinen nun als homogene Wolken, wodurch echte Muster in Binärdaten (Strukturen/Offsets) deutlicher hervortreten.
+- **Entkopplung der Morph-Animation**:
+    - Problem: Systemwechsel verursachten ein ungewolltes "Aufblähen/Kollabieren", da die Projektions-Animation fälschlicherweise mitgetriggert wurde.
+    - Lösung: Einführung von getrennten Zuständen für Start- und Zielprojektion (`u_proj_from`, `u_proj_to`) im Shader. Systemwechsel bewahren nun den aktuellen Projektionsgrad.
+    - Animation: `morph_duration` auf 2.0s erhöht für flüssigere, besser analysierbare Übergänge.
 
 ## Technische Details (Wissensbasis)
 - **Shader**: `vertex.glsl` (Punkt-Generierung), `quad_fragment.glsl` (Post-Processing & Kontrast).

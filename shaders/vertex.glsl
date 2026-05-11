@@ -7,7 +7,8 @@ uniform float u_point_size;
 uniform int coord_system_from;
 uniform int coord_system_to;
 uniform int projection_view;   // 0: XY, 1: YZ, 2: ZX
-uniform int u_is_projected;    // 0: Volle 3D Wolke, 1: Flache Projektion
+uniform int u_proj_from;       // 0: 3D, 1: Flat
+uniform int u_proj_to;         // 0: 3D, 1: Flat
 uniform float morph_factor;    // 0.0 bis 1.0
 
 const float PI = 3.14159265359;
@@ -62,9 +63,8 @@ void main() {
 
     float t = smoothstep(0.0, 1.0, morph_factor);
 
-    // blend_p bestimmt den Grad der "Flachheit"
-    // Wenn u_is_projected=1, animieren wir von 0 (3D) nach 1 (2D)
-    float blend_p = (u_is_projected == 1) ? t : (1.0 - t);
+    // blend_p bestimmt den Grad der "Flachheit" (animiert zwischen von/zu)
+    float blend_p = mix(float(u_proj_from), float(u_proj_to), t);
 
     // Berechne Misch-Positionen für das alte und das neue System
     vec3 from_3d   = get_3d_pos(coord_system_from, v1, v2, v3);

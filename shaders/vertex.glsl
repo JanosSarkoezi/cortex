@@ -20,12 +20,14 @@ vec3 get_3d_pos(int system, float v1, float v2, float v3) {
     }
     if (system == 1) { // ZYLINDRISCH
         float theta = v1 * 2.0 * PI;
-        return vec3(v2 * cos(theta), v2 * sin(theta), v3 * 2.0 - 1.0);
+        float r = sqrt(v2);
+        return vec3(r * cos(theta), r * sin(theta), v3 * 2.0 - 1.0);
     }
     // SPHÄRISCH
     float theta = v1 * 2.0 * PI;
-    float phi   = v2 * PI;
-    return vec3(v3 * sin(phi) * cos(theta), v3 * sin(phi) * sin(theta), v3 * cos(phi));
+    float phi   = acos(1.0 - 2.0 * v2);
+    float r = pow(v3, 1.0 / 3.0);
+    return vec3(r * sin(phi) * cos(theta), r * sin(phi) * sin(theta), r * cos(phi));
 }
 
 vec3 get_proj_pos(int system, float v1, float v2, float v3) {
@@ -38,14 +40,14 @@ vec3 get_proj_pos(int system, float v1, float v2, float v3) {
     }
     if (system == 1) { // ZYLINDRISCH
         float theta = v1 * 2.0 * PI;
-        float r = (projection_view == 1) ? 1.0 : v2;
+        float r = (projection_view == 1) ? 1.0 : sqrt(v2);
         float h = (projection_view == 0) ? 0.0 : (v3 * 2.0 - 1.0);
         return vec3(r * cos(theta), r * sin(theta), h);
     }
     // SPHÄRISCH
     float theta = v1 * 2.0 * PI;
-    float phi   = (projection_view == 1) ? PI/2.0 : (v2 * PI);
-    float r     = (projection_view == 0) ? 1.0 : v3;
+    float phi   = (projection_view == 1) ? PI/2.0 : acos(1.0 - 2.0 * v2);
+    float r     = (projection_view == 0) ? 1.0 : pow(v3, 1.0 / 3.0);
     return vec3(r * sin(phi) * cos(theta), r * sin(phi) * sin(theta), r * cos(phi));
 }
 

@@ -52,6 +52,15 @@
     - `glm_quat_slerp` für flüssige Übergänge beim Wechsel der Projektionsebenen und beim Reset (`R`).
     - Präzisions-Fix: Explizites Setzen der Ziel-Orientierung nach Abschluss der Animation zur Vermeidung von Rundungsfehlern.
 
+### 2026-05-11
+- **Mathematische Korrektur der Punktverteilung**:
+    - **Sphärisches System**:
+        - Vertikale Verteilung ($\phi$): Umstellung von linearer Abbildung (`v2 * PI`) auf `acos(1.0 - 2.0 * v2)`. Verhindert das "Clustering" an den Polen (Orange-Peel-Effekt).
+        - Radiale Verteilung ($r$): Anwendung der Kubikwurzel `pow(v3, 1/3)`. Sorgt für konstante Punktdichte im gesamten 3D-Volumen der Kugel.
+    - **Zylindrisches System**:
+        - Radiale Verteilung ($r$): Anwendung der Quadratwurzel `sqrt(v2)`. Gewährleistet eine homogene Verteilung über die Kreisfläche (Grundfläche des Zylinders).
+    - **Ziel**: Elimination von Artefakten, die durch die Koordinatentransformation entstehen. Reine Zufallsdaten erscheinen nun als homogene Wolken, wodurch echte Muster in Binärdaten (Strukturen/Offsets) deutlicher hervortreten.
+
 ## Technische Details (Wissensbasis)
 - **Shader**: `vertex.glsl` (Punkt-Generierung), `quad_fragment.glsl` (Post-Processing & Kontrast).
 - **Datenstruktur**: `R8UI` für Rohdaten (TBO), `R32F` für Akkumulations-Textur (FBO), um hohe Zählwerte ohne Überlauf zu speichern.

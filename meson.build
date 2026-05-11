@@ -44,7 +44,8 @@ sources = [
   'src/shader_loader.c',
   'src/shader_utils.c',
   'src/file_utils.c',
-  'src/camera.c'
+  'src/camera.c',
+  'src/histogram.c'
 ]
 
 # --- 3. Executable erstellen ---

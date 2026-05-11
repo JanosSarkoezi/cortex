@@ -5,8 +5,10 @@
 #include "shaders_embedded.h"
 #include "file_utils.h"
 #include "camera.h"
+#include "histogram.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <stddef.h>
 
 void setup_fbo(GLuint* fbo, GLuint* tex, int width, int height) {
     glGenFramebuffers(1, fbo);
@@ -30,6 +32,9 @@ float exposure = 1.0f;
 float offset = 0.5f;
 float point_size = 1.0f;
 int colormap_idx = 0; // 0: Matrix, 1: Turbo, 2: Viridis
+int use_histogram = 0; // 0: Rohdaten, 1: Histogramm
+Histogram hist = {NULL, 0, 0};
+GLuint hist_vbo = 0, hist_vao = 0;
 int coord_system_from = 0;
 int coord_system_to = 0;
 int proj_from = 0;
@@ -163,6 +168,16 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         needs_update = 1;
     }
 
+    if (key == GLFW_KEY_M) {
+        if (hist.points != NULL) {
+            use_histogram = !use_histogram;
+            needs_update = 1;
+            printf("\033[1;34m[Modus]\033[0m %s\n", use_histogram ? "3D-Histogramm (Voxel)" : "Sequenziell (Rohdaten)");
+        } else {
+            printf("\033[1;31m[Fehler]\033[0m Histogramm nicht verfügbar.\n");
+        }
+    }
+
     if (key == GLFW_KEY_EQUAL || key == GLFW_KEY_KP_ADD) {
         point_size = (point_size < 4.0f) ? point_size + 0.5f : 4.0f;
         needs_update = 1;
@@ -227,6 +242,29 @@ int main(int argc, char** argv) {
     if (mf.data == NULL) {
         glfwTerminate();
         return -1;
+    }
+
+    // Histogramm berechnen (Cortex-Mode)
+    hist = calculate_histogram(mf.data, mf.size);
+    if (hist.points) {
+        glGenVertexArrays(1, &hist_vao);
+        glGenBuffers(1, &hist_vbo);
+        glBindVertexArray(hist_vao);
+        glBindBuffer(GL_ARRAY_BUFFER, hist_vbo);
+        glBufferData(GL_ARRAY_BUFFER, hist.num_points * sizeof(HistogramPoint), hist.points, GL_STATIC_DRAW);
+
+        // Attribute 0: vec3 aPos (x, y, z als uint8_t, im Shader / 255.0)
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(HistogramPoint), (void*)0);
+        // Attribute 1: float aCount (Häufigkeit)
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 1, GL_UNSIGNED_INT, GL_FALSE, sizeof(HistogramPoint), (void*)offsetof(HistogramPoint, count));
+
+        // Automatisch in Histogramm-Modus wechseln bei großen Dateien (> 20MB)
+        if (mf.size > 20 * 1024 * 1024) {
+            use_histogram = 1;
+            printf("\033[1;34m[Cortex]\033[0m Große Datei erkannt, Histogramm-Modus aktiviert.\n");
+        }
     }
 
     GLuint tbo_buffer, tbo_tex;
@@ -337,15 +375,21 @@ int main(int argc, char** argv) {
             glUniform1f(glGetUniformLocation(accProgram, "u_point_size"), point_size);
             glUniform1i(glGetUniformLocation(accProgram, "u_proj_from"), proj_from);
             glUniform1i(glGetUniformLocation(accProgram, "u_proj_to"), proj_to);
+            glUniform1i(glGetUniformLocation(accProgram, "u_use_histogram"), use_histogram);
 
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_BUFFER, tbo_tex);
-            glUniform1i(glGetUniformLocation(accProgram, "raw_data"), 0);
+            if (use_histogram) {
+                glBindVertexArray(hist_vao);
+                glDrawArrays(GL_POINTS, 0, (GLsizei)hist.num_points);
+            } else {
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_BUFFER, tbo_tex);
+                glUniform1i(glGetUniformLocation(accProgram, "raw_data"), 0);
 
-            glBindVertexArray(VAO);
-            GLsizei count = (cam.mode_3d) ? (GLsizei)(mf.size - 2) : (GLsizei)(mf.size - 1);
-            if (count > 0) {
-                glDrawArrays(GL_POINTS, 0, count);
+                glBindVertexArray(VAO);
+                GLsizei count = (cam.mode_3d) ? (GLsizei)(mf.size - 2) : (GLsizei)(mf.size - 1);
+                if (count > 0) {
+                    glDrawArrays(GL_POINTS, 0, count);
+                }
             }
 
             glDisable(GL_BLEND);
@@ -381,6 +425,9 @@ int main(int argc, char** argv) {
     }
 
     unmap_file(mf);
+    free_histogram(hist);
+    if (hist_vao) glDeleteVertexArrays(1, &hist_vao);
+    if (hist_vbo) glDeleteBuffers(1, &hist_vbo);
     glfwTerminate();
     return 0;
 }

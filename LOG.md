@@ -64,6 +64,11 @@
     - Problem: Systemwechsel verursachten ein ungewolltes "Aufblähen/Kollabieren", da die Projektions-Animation fälschlicherweise mitgetriggert wurde.
     - Lösung: Einführung von getrennten Zuständen für Start- und Zielprojektion (`u_proj_from`, `u_proj_to`) im Shader. Systemwechsel bewahren nun den aktuellen Projektionsgrad.
     - Animation: `morph_duration` auf 2.0s erhöht für flüssigere, besser analysierbare Übergänge.
+- **3D-Histogramm Modus (Voxel-Rendering)**:
+    - Konzept: Aggregation von Byte-Tripletts zu einer Häufigkeitsmatrix ($256^3$).
+    - Performance: Reduziert die zu zeichnenden Punkte bei großen Dateien massiv (maximal 16,7 Mio. Punkte).
+    - Implementierung: CPU-seitige Vorberechnung des Histogramms; Upload als VBO; Shader-Update zur Nutzung von Häufigkeitswerten für die Intensität.
+    - Automatisierung: Automatischer Wechsel in den Histogramm-Modus bei Dateien > 20MB. Manuelle Umschaltung via Taste `m`.
 
 ## Technische Details (Wissensbasis)
 - **Shader**: `vertex.glsl` (Punkt-Generierung), `quad_fragment.glsl` (Post-Processing & Kontrast).

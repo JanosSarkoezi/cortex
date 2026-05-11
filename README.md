@@ -30,6 +30,7 @@ Der Name **Cortex** leitet sich von der Idee ab, dass das Programm lediglich die
 
 ### Programm
 - **q**: Programm beenden
+- **m**: Modus umschalten (Sequenziell vs. 3D-Histogramm)
 - **h**: UI (HUD) und Farbskala ein-/ausblenden
 
 ### Ansicht & Projektion

@@ -104,21 +104,21 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
     if (key == GLFW_KEY_Q) glfwSetWindowShouldClose(window, GLFW_TRUE);
     if (key == GLFW_KEY_H) {
         show_ui = !show_ui;
-        printf("UI %s\n", show_ui ? "eingeblendet" : "ausgeblendet");
+        printf("\033[1;34m[UI]\033[0m %s\n", show_ui ? "eingeblendet" : "ausgeblendet");
     }
 
     // --- MODUS-WECHSEL (2D / 3D) ---
     if (key == GLFW_KEY_SPACE) {
         cam.mode_3d = !cam.mode_3d;
         needs_update = 1; // Nur Kamera-Update, kein Morphing nötig
-        printf("Kamera: %s\n", cam.mode_3d ? "Perspektivisch" : "Orthografisch");
+        printf("\033[1;34m[Kamera]\033[0m %s\n", cam.mode_3d ? "Perspektivisch" : "Orthografisch");
     }
 
     if (key == GLFW_KEY_P) {
         proj_from = proj_to;
         proj_to = !proj_to;
         trigger_transition(); // Startet Morphing der Punkte
-        printf("Projektion: %s\n", proj_to ? "AN" : "AUS");
+        printf("\033[1;34m[Projektion]\033[0m %s\n", proj_to ? "AN" : "AUS");
     }
 
     if (key == GLFW_KEY_1 || key == GLFW_KEY_2 || key == GLFW_KEY_3) {
@@ -144,7 +144,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
             trigger_transition(); // Morph zwischen den Systemen
 
             const char* names[] = {"Kartesisch", "Zylindrisch", "Sphärisch"};
-            printf("Systemwechsel: %s -> %s\n", names[coord_system_from], names[coord_system_to]);
+            printf("\033[1;34m[System]\033[0m %s -> %s\n", names[coord_system_from], names[coord_system_to]);
         }
     }
 
@@ -153,13 +153,13 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
     if (key == GLFW_KEY_R) {
         camera_reset(&cam); // Setzt Orientierung und Zoom zurück
         trigger_transition();
-        printf("Kamera zurückgesetzt.\n");
+        printf("\033[1;34m[Reset]\033[0m Kamera zurückgesetzt.\n");
     }
 
     if (key == GLFW_KEY_TAB) {
         colormap_idx = (colormap_idx + 1) % 3;
         const char* names[] = {"Matrix", "Turbo", "Viridis"};
-        printf("Colormap gewechselt: %s\n", names[colormap_idx]);
+        printf("\033[1;34m[Farbe]\033[0m Colormap: %s\n", names[colormap_idx]);
         needs_update = 1;
     }
 
@@ -202,20 +202,22 @@ int main(int argc, char** argv) {
     GLuint uiProgram = create_shader_program_from_source(ui_vertex_shader_source, ui_fragment_shader_source);
 
     if (argc < 2) {
+        fprintf(stderr, "\033[1;36mCortex Binary Visualizer\033[0m\n");
         fprintf(stderr, "Nutzung: %s <dateipfad>\n\n", argv[0]);
-        fprintf(stderr, "Steuerung:\n");
-        fprintf(stderr, "  SPACE       - Wechsel zwischen 2D (Digram) und 3D (Trigram)\n");
-        fprintf(stderr, "  TAB         - Colormap wechseln (Matrix, Turbo, Viridis)\n");
-        fprintf(stderr, "  K           - Koordinatensystem wechseln (Kartesisch, Zylindrisch, Sphärisch)\n");
-        fprintf(stderr, "  H           - UI / Farbskala ein-/ausblenden\n");
-        fprintf(stderr, "  R           - Kamera zurücksetzen\n");
-        fprintf(stderr, "  + / -       - Punktgröße anpassen (1.0 - 4.0)\n");
-        fprintf(stderr, "  Q           - Programm beenden\n\n");
-        fprintf(stderr, "Maus:\n");
+        fprintf(stderr, "\033[1;33mSteuerung:\033[0m\n");
+        fprintf(stderr, "  \033[1;32mspace\033[0m       - Perspektive umschalten (3D / Ortho)\n");
+        fprintf(stderr, "  \033[1;32mp\033[0m           - Projektion umschalten (3D-Wolke / Flach)\n");
+        fprintf(stderr, "  \033[1;32mtab\033[0m         - Colormap wechseln (Matrix, Turbo, Viridis)\n");
+        fprintf(stderr, "  \033[1;32mk / z / s\033[0m   - System wechseln (Kartesisch, Zylindrisch, Sphärisch)\n");
+        fprintf(stderr, "  \033[1;32m1 / 2 / 3\033[0m   - Ansicht ausrichten (XY, YZ, ZX)\n");
+        fprintf(stderr, "  \033[1;32mh\033[0m           - UI / Farbskala ein-/ausblenden\n");
+        fprintf(stderr, "  \033[1;32mr\033[0m           - Kamera & Zoom zurücksetzen\n");
+        fprintf(stderr, "  \033[1;32m+ / -\033[0m       - Punktgröße anpassen (1.0 - 4.0)\n");
+        fprintf(stderr, "  \033[1;32mq\033[0m           - Programm beenden\n\n");
+        fprintf(stderr, "\033[1;33mMaus:\033[0m\n");
         fprintf(stderr, "  Scrollen    - Zoom\n");
-        fprintf(stderr, "  STRG+Scroll - Kontrast/Offset anpassen\n");
-        fprintf(stderr, "  Links-Klick - Kamera rotieren (im 3D Modus)\n\n");
-        fprintf(stderr, "Beispiel: %s /bin/ls\n", argv[0]);
+        fprintf(stderr, "  STRG+Scroll - Kontrast / Rauschfilter (Offset)\n");
+        fprintf(stderr, "  Links-Klick - Kamera rotieren\n\n");
         glfwTerminate();
         return 1;
     }

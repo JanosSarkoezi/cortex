@@ -6,6 +6,7 @@
 #include "file_utils.h"
 #include "camera.h"
 #include "histogram.h"
+#include "text_renderer.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
@@ -325,6 +326,8 @@ int main(int argc, char** argv) {
 
     glEnable(GL_PROGRAM_POINT_SIZE);
 
+    text_renderer_init();
+
     while (!glfwWindowShouldClose(window)) {
         double current_time = glfwGetTime();
         float dt = (float)(current_time - last_morph_time);
@@ -418,6 +421,20 @@ int main(int argc, char** argv) {
             glUniform1i(glGetUniformLocation(uiProgram, "colormap_idx"), colormap_idx);
             glBindVertexArray(uiVAO);
             glDrawArrays(GL_TRIANGLES, 0, 6);
+
+            // Text HUD
+            vec3 textColor = {0.0f, 1.0f, 0.0f}; // Matrix Green
+            char buf[128];
+            const char* sys_names[] = {"Kartesisch", "Zylindrisch", "Sphärisch"};
+            
+            sprintf(buf, "System: %s", sys_names[coord_system_to]);
+            text_renderer_render(buf, 20.0f, 40.0f, 0.6f, textColor, screenW, screenH);
+            
+            sprintf(buf, "Modus:  %s", cam.mode_3d ? "3D (Persp)" : "2D (Ortho)");
+            text_renderer_render(buf, 20.0f, 70.0f, 0.6f, textColor, screenW, screenH);
+
+            sprintf(buf, "Proj:   %s", proj_to ? "AN" : "AUS");
+            text_renderer_render(buf, 20.0f, 100.0f, 0.6f, textColor, screenW, screenH);
         }
 
         glfwSwapBuffers(window);
@@ -426,6 +443,7 @@ int main(int argc, char** argv) {
 
     unmap_file(mf);
     free_histogram(hist);
+    text_renderer_cleanup();
     if (hist_vao) glDeleteVertexArrays(1, &hist_vao);
     if (hist_vbo) glDeleteBuffers(1, &hist_vbo);
     glfwTerminate();

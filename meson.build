@@ -5,25 +5,36 @@ project('cortex', 'c',
 cc = meson.get_compiler('c')
 python = import('python').find_installation('python3')
 
-# --- 1. Shader Embedding Automatisierung ---
+# --- 1. Shader & Binary Embedding Automatisierung ---
 shader_files = [
   'shaders/vertex.glsl',
   'shaders/fragment.glsl',
   'shaders/quad_vertex.glsl',
   'shaders/quad_fragment.glsl',
   'shaders/ui_vertex.glsl',
-  'shaders/ui_fragment.glsl'
+  'shaders/ui_fragment.glsl',
+  'shaders/text_vertex.glsl',
+  'shaders/text_fragment.glsl'
 ]
 
-# Dieses Target generiert src/shaders_embedded.h neu, wenn sich die .glsl Dateien ändern
-shaders_h = custom_target('shader_embedding',
+# Dieses Target generiert src/shaders_embedded.h und .c neu, wenn sich die .glsl Dateien ändern
+shaders_gen = custom_target('shader_embedding',
   input : shader_files,
-  output : 'shaders_embedded.h',
+  output : ['shaders_embedded.h', 'shaders_embedded.c'],
   command : [python, files('scripts/embed_shaders.py')],
   build_by_default : true
 )
 
+# Target für Font-Einbettung
+font_gen = custom_target('font_embedding',
+  input : 'fonts/JetBrainsMono-Regular.ttf',
+  output : ['font_embedded.h', 'font_embedded.c'],
+  command : [python, files('scripts/embed_binary.py'), '@INPUT@', 'font_data', '@OUTPUT0@', '@OUTPUT1@'],
+  build_by_default : true
+)
+
 # --- 2. Abhängigkeiten (Statisch erzwingen) ---
+# ... (rest unchanged)
 glfw_dep = dependency('glfw3', static : true, fallback : ['glfw', 'glfw_dep'])
 cglm_dep = dependency('cglm', static : true, fallback : ['cglm', 'cglm_dep'])
 
@@ -45,13 +56,14 @@ sources = [
   'src/shader_utils.c',
   'src/file_utils.c',
   'src/camera.c',
-  'src/histogram.c'
+  'src/histogram.c',
+  'src/text_renderer.c'
 ]
 
 # --- 3. Executable erstellen ---
 executable('cortex',
   sources,
-  shaders_h, # Hier die Abhängigkeit zum generierten Header hinzufügen
+  [shaders_gen, font_gen], # Hier die Abhängigkeiten zu den generierten Dateien
   link_with : glad_res,
   dependencies : [glfw_dep, cglm_dep, gl_dep, dl_dep],
   include_directories : inc,

@@ -70,6 +70,15 @@
     - Implementierung: CPU-seitige Vorberechnung des Histogramms; Upload als VBO; Shader-Update zur Nutzung von Häufigkeitswerten für die Intensität.
     - Automatisierung: Automatischer Wechsel in den Histogramm-Modus bei Dateien > 20MB. Manuelle Umschaltung via Taste `m`.
 
+### 2026-05-12
+- **Text HUD (stb_truetype)**:
+    - **Integration**: `stb_truetype.h` zur Generierung von Font-Bitmaps integriert.
+    - **JetBrains Mono**: Hochwertiger Monospace-Font für optimale Lesbarkeit im technischen Kontext eingebettet.
+    - **Binary Embedding**: Neues Skript `scripts/embed_binary.py` erstellt, das TTF-Dateien in C-Header-Dateien (Hex-Arrays) umwandelt. Die Binary bleibt somit portabel und benötigt keine externen Font-Dateien.
+    - **Text-Renderer**: Neues Modul `src/text_renderer.c` implementiert. Nutzt Batch-Rendering (Sammeln aller Buchstaben-Quads in einem VBO) für maximale Performance.
+    - **Dynamisches HUD**: Echtzeit-Anzeige von Koordinatensystem, Kamera-Modus und Projektionsstatus.
+    - **Shader**: Eigener Text-Shader (`text_vertex.glsl`, `text_fragment.glsl`) für Rendering mit Alpha-Masken aus GL_RED Texturen.
+
 ## Technische Details (Wissensbasis)
 - **Shader**: `vertex.glsl` (Punkt-Generierung), `quad_fragment.glsl` (Post-Processing & Kontrast).
 - **Datenstruktur**: `R8UI` für Rohdaten (TBO), `R32F` für Akkumulations-Textur (FBO), um hohe Zählwerte ohne Überlauf zu speichern.

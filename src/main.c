@@ -7,6 +7,7 @@
 #include "camera.h"
 #include "histogram.h"
 #include "text_renderer.h"
+#include "entropy.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
@@ -64,6 +65,9 @@ double last_morph_time = 0.0;
 int show_ui = 1;
 int current_view = 0;
 Camera cam;
+EntropyMap entropy_map = {NULL, 0, 0};
+GLuint entropy_vbo = 0, entropy_vao = 0;
+int show_entropy = 1;
 
 double last_x, last_y;
 int left_mouse_pressed = 0;
@@ -233,6 +237,7 @@ int main(int argc, char** argv) {
     GLuint accProgram = create_shader_program_from_source(vertex_shader_source, fragment_shader_source);
     GLuint quadProgram = create_shader_program_from_source(quad_vertex_shader_source, quad_fragment_shader_source);
     GLuint uiProgram = create_shader_program_from_source(ui_vertex_shader_source, ui_fragment_shader_source);
+    GLuint entropyProgram = create_shader_program_from_source(entropy_vertex_shader_source, entropy_fragment_shader_source);
 
     if (argc < 2) {
         fprintf(stderr, "\033[1;36mCortex Binary Visualizer\033[0m\n");
@@ -293,6 +298,25 @@ int main(int argc, char** argv) {
     glGenTextures(1, &tbo_tex);
     glBindTexture(GL_TEXTURE_BUFFER, tbo_tex);
     glTexBuffer(GL_TEXTURE_BUFFER, GL_R8UI, tbo_buffer);
+
+    // Entropie berechnen
+    entropy_map = calculate_entropy_map(mf.data, mf.size, 1024);
+    if (entropy_map.values) {
+        glGenVertexArrays(1, &entropy_vao);
+        glGenBuffers(1, &entropy_vbo);
+        glBindVertexArray(entropy_vao);
+        glBindBuffer(GL_ARRAY_BUFFER, entropy_vbo);
+        // Wir erstellen die Vertices direkt: X von -0.9 bis 0.9, Y ist Entropiewert
+        float* vdata = malloc(entropy_map.num_blocks * 2 * sizeof(float));
+        for (size_t i = 0; i < entropy_map.num_blocks; i++) {
+            vdata[i*2] = -0.9f + 1.8f * ((float)i / (float)entropy_map.num_blocks);
+            vdata[i*2+1] = entropy_map.values[i];
+        }
+        glBufferData(GL_ARRAY_BUFFER, entropy_map.num_blocks * 2 * sizeof(float), vdata, GL_STATIC_DRAW);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+        free(vdata);
+    }
 
     GLuint VAO;
     glGenVertexArrays(1, &VAO);
@@ -438,6 +462,12 @@ int main(int argc, char** argv) {
             glUniform1i(glGetUniformLocation(uiProgram, "colormap_idx"), colormap_idx);
             glBindVertexArray(uiVAO);
             glDrawArrays(GL_TRIANGLES, 0, 6);
+
+            if (show_entropy && entropy_vao) {
+                glUseProgram(entropyProgram);
+                glBindVertexArray(entropy_vao);
+                glDrawArrays(GL_LINE_STRIP, 0, (GLsizei)entropy_map.num_blocks);
+            }
 
             // Text HUD
             vec3 textColor = {0.0f, 1.0f, 0.0f}; // Matrix Green

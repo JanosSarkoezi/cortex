@@ -14,7 +14,9 @@ shader_files = [
   'shaders/ui_vertex.glsl',
   'shaders/ui_fragment.glsl',
   'shaders/text_vertex.glsl',
-  'shaders/text_fragment.glsl'
+  'shaders/text_fragment.glsl',
+  'shaders/entropy_vertex.glsl',
+  'shaders/entropy_fragment.glsl'
 ]
 
 # Dieses Target generiert src/shaders_embedded.h und .c neu, wenn sich die .glsl Dateien ändern
@@ -57,7 +59,8 @@ sources = [
   'src/file_utils.c',
   'src/camera.c',
   'src/histogram.c',
-  'src/text_renderer.c'
+  'src/text_renderer.c',
+  'src/entropy.c'
 ]
 
 # --- 3. Executable erstellen ---

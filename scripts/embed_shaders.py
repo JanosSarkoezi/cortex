@@ -18,7 +18,9 @@ def main():
         'ui_vertex.glsl': 'ui_vertex_shader_source',
         'ui_fragment.glsl': 'ui_fragment_shader_source',
         'text_vertex.glsl': 'text_vertex_shader_source',
-        'text_fragment.glsl': 'text_fragment_shader_source'
+        'text_fragment.glsl': 'text_fragment_shader_source',
+        'entropy_vertex.glsl': 'entropy_vertex_shader_source',
+        'entropy_fragment.glsl': 'entropy_fragment_shader_source'
     }
 
     # Write Header

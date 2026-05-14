@@ -6,20 +6,8 @@ cc = meson.get_compiler('c')
 python = import('python').find_installation('python3')
 
 # --- 1. Shader & Binary Embedding Automatisierung ---
-shader_files = [
-  'shaders/vertex.glsl',
-  'shaders/fragment.glsl',
-  'shaders/quad_vertex.glsl',
-  'shaders/quad_fragment.glsl',
-  'shaders/ui_vertex.glsl',
-  'shaders/ui_fragment.glsl',
-  'shaders/text_vertex.glsl',
-  'shaders/text_fragment.glsl'
-]
-
-# Dieses Target generiert src/shaders_embedded.h und .c neu, wenn sich die .glsl Dateien ändern
+# Dieses Target generiert src/shaders_embedded.h und .c neu, wenn sich die Dateien in shaders/ ändern
 shaders_gen = custom_target('shader_embedding',
-  input : shader_files,
   output : ['shaders_embedded.h', 'shaders_embedded.c'],
   command : [python, files('scripts/embed_shaders.py')],
   build_by_default : true

@@ -32,7 +32,7 @@ void text_renderer_init() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
     // Create shader
-    text_program = create_shader_program_from_source(text_vertex_shader_source, text_fragment_shader_source);
+    text_program = create_shader_program_from_source(text_text_vert_source, text_text_frag_source);
 
     // Setup VAO/VBO
     glGenVertexArrays(1, &font_vao);

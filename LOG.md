@@ -88,7 +88,13 @@
     - Implementierung von `framebuffer_size_callback` zur automatischen Anpassung der internen Auflösung.
     - Refactoring von `setup_fbo`: Bestehende Texturen und Framebuffer werden nun korrekt gelöscht, bevor neue in der passenden Größe erstellt werden.
     - Ergebnis: Gestochen scharfes Rendering unabhängig von der Fenstergröße (kein Upscaling-Blur mehr).
+- **Shader-Refactoring & Strukturierung**:
+    - **Neuorganisation**: Einführung einer hierarchischen Ordnerstruktur für Shader (`shaders/core`, `shaders/ui`, etc.).
+    - **Dateiendungen**: Umstellung von `.glsl` auf `.vert` / `.frag` zur besseren Unterstützung durch IDEs.
+    - **Smart Embedding**: `embed_shaders.py` wurde komplett automatisiert. Es scannt nun rekursiv den Shader-Ordner und generiert C-Variablennamen basierend auf dem Dateipfad.
+    - **Build-System**: Vereinfachung der `meson.build`. Neue Shader werden nun automatisch erkannt und eingebettet, ohne dass die Build-Dateien händisch angepasst werden müssen.
+    - **Konsistenz**: Vereinheitlichung der Skript-Berechtigungen im `scripts/` Verzeichnis (non-executable, da Aufruf via Python-Interpreter).
 
 ## Technische Details (Wissensbasis)
-- **Shader**: `vertex.glsl` (Punkt-Generierung), `quad_fragment.glsl` (Post-Processing & Kontrast).
+- **Shader**: `core/default.vert` (Punkt-Generierung), `quad/quad.frag` (Post-Processing & Kontrast).
 - **Datenstruktur**: `R8UI` für Rohdaten (TBO), `R32F` für Akkumulations-Textur (FBO), um hohe Zählwerte ohne Überlauf zu speichern.

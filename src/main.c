@@ -230,9 +230,9 @@ int main(int argc, char** argv) {
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) return -1;
 
-    GLuint accProgram = create_shader_program_from_source(vertex_shader_source, fragment_shader_source);
-    GLuint quadProgram = create_shader_program_from_source(quad_vertex_shader_source, quad_fragment_shader_source);
-    GLuint uiProgram = create_shader_program_from_source(ui_vertex_shader_source, ui_fragment_shader_source);
+    GLuint accProgram = create_shader_program_from_source(core_default_vert_source, core_default_frag_source);
+    GLuint quadProgram = create_shader_program_from_source(quad_quad_vert_source, quad_quad_frag_source);
+    GLuint uiProgram = create_shader_program_from_source(ui_ui_vert_source, ui_ui_frag_source);
 
     if (argc < 2) {
         fprintf(stderr, "\033[1;36mCortex Binary Visualizer\033[0m\n");

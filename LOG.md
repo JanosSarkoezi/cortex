@@ -79,6 +79,16 @@
     - **Dynamisches HUD**: Echtzeit-Anzeige von Koordinatensystem, Kamera-Modus und Projektionsstatus.
     - **Shader**: Eigener Text-Shader (`text_vertex.glsl`, `text_fragment.glsl`) für Rendering mit Alpha-Masken aus GL_RED Texturen.
 
+### 2026-05-14
+- **Sliding Window Fix**: 
+    - Korrektur der Indizierung in `vertex.glsl`: Umstellung von `gl_VertexID * 3` auf `gl_VertexID`.
+    - Implementierung einer Sicherheitsprüfung für Trigramme (3D) vs. Digramme (2D), um Out-of-Bounds-Zugriffe auf TBO-Daten zu verhindern.
+    - Ergebnis: Korrekte, überlappende Byte-Visualisierung ("Cortex-Mode") über die gesamte Dateilänge.
+- **Dynamisches FBO-Resizing**:
+    - Implementierung von `framebuffer_size_callback` zur automatischen Anpassung der internen Auflösung.
+    - Refactoring von `setup_fbo`: Bestehende Texturen und Framebuffer werden nun korrekt gelöscht, bevor neue in der passenden Größe erstellt werden.
+    - Ergebnis: Gestochen scharfes Rendering unabhängig von der Fenstergröße (kein Upscaling-Blur mehr).
+
 ## Technische Details (Wissensbasis)
 - **Shader**: `vertex.glsl` (Punkt-Generierung), `quad_fragment.glsl` (Post-Processing & Kontrast).
 - **Datenstruktur**: `R8UI` für Rohdaten (TBO), `R32F` für Akkumulations-Textur (FBO), um hohe Zählwerte ohne Überlauf zu speichern.

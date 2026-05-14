@@ -72,8 +72,8 @@ void main() {
         v3 = aPos.z / 255.0;
         count = aCount;
     } else {
-        // Daten-Fetch aus TBO (3 Bytes pro Punkt)
-        int base_idx = gl_VertexID * 3;
+        // Daten-Fetch aus TBO (Sliding Window: i, i+1, i+2)
+        int base_idx = gl_VertexID;
         v1 = float(texelFetch(raw_data, base_idx).r) / 255.0;
         v2 = float(texelFetch(raw_data, base_idx + 1).r) / 255.0;
         v3 = float(texelFetch(raw_data, base_idx + 2).r) / 255.0;

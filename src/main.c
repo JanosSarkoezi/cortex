@@ -12,6 +12,10 @@
 #include <stddef.h>
 
 void setup_fbo(GLuint* fbo, GLuint* tex, int width, int height) {
+    // Falls bereits vorhanden: Löschen
+    if (*fbo) glDeleteFramebuffers(1, fbo);
+    if (*tex) glDeleteTextures(1, tex);
+
     glGenFramebuffers(1, fbo);
     glBindFramebuffer(GL_FRAMEBUFFER, *fbo);
 
@@ -29,6 +33,20 @@ void setup_fbo(GLuint* fbo, GLuint* tex, int width, int height) {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
+int current_width = 1024, current_height = 1024;
+GLuint fbo = 0, accTex = 0;
+int needs_update = 1;
+
+void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
+    (void)window;
+    if (width > 0 && height > 0) {
+        current_width = width;
+        current_height = height;
+        setup_fbo(&fbo, &accTex, width, height);
+        needs_update = 1;
+    }
+}
+
 float exposure = 1.0f;
 float offset = 0.5f;
 float point_size = 1.0f;
@@ -44,7 +62,6 @@ float morph_factor = 1.0f;
 float morph_duration = 2.0f;
 double last_morph_time = 0.0;
 int show_ui = 1;
-int needs_update = 1;
 int current_view = 0;
 Camera cam;
 
@@ -196,8 +213,7 @@ int main(int argc, char** argv) {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    int width = 1024, height = 1024;
-    GLFWwindow* window = glfwCreateWindow(width, height, "Cortex - Binary Visualizer", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(current_width, current_height, "Cortex - Binary Visualizer", NULL, NULL);
     if (!window) {
         glfwTerminate();
         return -1;
@@ -210,6 +226,7 @@ int main(int argc, char** argv) {
     glfwSetKeyCallback(window, key_callback);
     glfwSetMouseButtonCallback(window, mouse_button_callback);
     glfwSetCursorPosCallback(window, cursor_pos_callback);
+    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) return -1;
 
@@ -321,8 +338,8 @@ int main(int argc, char** argv) {
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
 
-    GLuint fbo, accTex;
-    setup_fbo(&fbo, &accTex, width, height);
+    // Initiales FBO Setup
+    setup_fbo(&fbo, &accTex, current_width, current_height);
 
     glEnable(GL_PROGRAM_POINT_SIZE);
 
@@ -360,7 +377,7 @@ int main(int argc, char** argv) {
             camera_get_mvp(&cam, mvp);
 
             glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-            glViewport(0, 0, width, height);
+            glViewport(0, 0, current_width, current_height);
             glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
 
@@ -373,7 +390,6 @@ int main(int argc, char** argv) {
             glUniform1i(glGetUniformLocation(accProgram, "coord_system_from"), coord_system_from);
             glUniform1i(glGetUniformLocation(accProgram, "coord_system_to"), coord_system_to);
             glUniform1f(glGetUniformLocation(accProgram, "morph_factor"), morph_factor);
-            glUniform1i(glGetUniformLocation(accProgram, "mode_3d"), cam.mode_3d);
             glUniform1i(glGetUniformLocation(accProgram, "projection_view"), current_view);
             glUniform1f(glGetUniformLocation(accProgram, "u_point_size"), point_size);
             glUniform1i(glGetUniformLocation(accProgram, "u_proj_from"), proj_from);
@@ -389,7 +405,8 @@ int main(int argc, char** argv) {
                 glUniform1i(glGetUniformLocation(accProgram, "raw_data"), 0);
 
                 glBindVertexArray(VAO);
-                GLsizei count = (cam.mode_3d) ? (GLsizei)(mf.size - 2) : (GLsizei)(mf.size - 1);
+                // Immer Trigramme zeichnen (3 Bytes pro Punkt)
+                GLsizei count = (mf.size > 2) ? (GLsizei)(mf.size - 2) : 0;
                 if (count > 0) {
                     glDrawArrays(GL_POINTS, 0, count);
                 }

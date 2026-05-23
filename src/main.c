@@ -7,12 +7,16 @@
 #include "camera.h"
 #include "histogram.h"
 #include "text_renderer.h"
+#include "app_state.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
 
-void setup_fbo(GLuint* fbo, GLuint* tex, int width, int height) {
-    // Falls bereits vorhanden: Löschen
+// ---------------------------------------------------------------------------
+// Hilfsfunktionen
+// ---------------------------------------------------------------------------
+
+static void setup_fbo(GLuint* fbo, GLuint* tex, int width, int height) {
     if (*fbo) glDeleteFramebuffers(1, fbo);
     if (*tex) glDeleteTextures(1, tex);
 
@@ -33,127 +37,110 @@ void setup_fbo(GLuint* fbo, GLuint* tex, int width, int height) {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-int current_width = 1024, current_height = 1024;
-GLuint fbo = 0, accTex = 0;
-int needs_update = 1;
+static void trigger_transition(AppState* s) {
+    s->morph_factor    = 0.0f;
+    s->last_morph_time = glfwGetTime();
+    s->needs_update    = 1;
+}
 
-void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
-    (void)window;
+// ---------------------------------------------------------------------------
+// GLFW-Callbacks
+// ---------------------------------------------------------------------------
+
+static void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
+    AppState* s = glfwGetWindowUserPointer(window);
     if (width > 0 && height > 0) {
-        current_width = width;
-        current_height = height;
-        setup_fbo(&fbo, &accTex, width, height);
-        needs_update = 1;
+        s->width  = width;
+        s->height = height;
+        setup_fbo(&s->fbo, &s->acc_tex, width, height);
+        s->needs_update = 1;
     }
 }
 
-float exposure = 1.0f;
-float offset = 0.5f;
-float point_size = 1.0f;
-int colormap_idx = 0; // 0: Matrix, 1: Turbo, 2: Viridis
-int use_histogram = 0; // 0: Rohdaten, 1: Histogramm
-Histogram hist = {NULL, 0, 0};
-GLuint hist_vbo = 0, hist_vao = 0;
-int coord_system_from = 0;
-int coord_system_to = 0;
-int proj_from = 0;
-int proj_to = 0;
-float morph_factor = 1.0f;
-float morph_duration = 2.0f;
-double last_morph_time = 0.0;
-double last_frame_time = 0.0;
-int show_ui = 1;
-int current_view = 0;
-Camera cam;
-
-double last_x, last_y;
-int left_mouse_pressed = 0;
-
-void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
+static void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
     (void)xoffset;
-    int ctrl_pressed = glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS ||
+    AppState* s = glfwGetWindowUserPointer(window);
+
+    int ctrl_pressed = glfwGetKey(window, GLFW_KEY_LEFT_CONTROL)  == GLFW_PRESS ||
                        glfwGetKey(window, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS;
 
     if (ctrl_pressed) {
-        if (yoffset > 0) offset *= 1.1f;
-        else offset *= 0.9f;
-        if (offset < 0.00001f) offset = 0.00001f;
-        if (offset > 10.0f) offset = 10.0f;
-        printf("Offset: %.6f\n", offset);
+        if (yoffset > 0) s->offset *= 1.1f;
+        else             s->offset *= 0.9f;
+        if (s->offset < 0.00001f) s->offset = 0.00001f;
+        if (s->offset > 10.0f)    s->offset = 10.0f;
+        printf("Offset: %.6f\n", s->offset);
     } else {
-        camera_zoom(&cam, (float)yoffset);
-        needs_update = 1;
+        camera_zoom(&s->cam, (float)yoffset);
+        s->needs_update = 1;
     }
 }
 
-void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
+static void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
     (void)mods;
+    AppState* s = glfwGetWindowUserPointer(window);
+
     if (button == GLFW_MOUSE_BUTTON_LEFT) {
         if (action == GLFW_PRESS) {
-            left_mouse_pressed = 1;
-            glfwGetCursorPos(window, &last_x, &last_y);
+            s->left_mouse_pressed = 1;
+            glfwGetCursorPos(window, &s->last_x, &s->last_y);
         } else {
-            left_mouse_pressed = 0;
+            s->left_mouse_pressed = 0;
         }
     }
 }
 
-void cursor_pos_callback(GLFWwindow* window, double xpos, double ypos) {
-    (void)window;
-    if (left_mouse_pressed) {
-        float dx = (float)(xpos - last_x);
-        float dy = (float)(ypos - last_y);
-        last_x = xpos;
-        last_y = ypos;
+static void cursor_pos_callback(GLFWwindow* window, double xpos, double ypos) {
+    AppState* s = glfwGetWindowUserPointer(window);
 
-        camera_rotate(&cam, dx, dy);
-        needs_update = 1;
+    if (s->left_mouse_pressed) {
+        float dx = (float)(xpos - s->last_x);
+        float dy = (float)(ypos - s->last_y);
+        s->last_x = xpos;
+        s->last_y = ypos;
+
+        camera_rotate(&s->cam, dx, dy);
+        s->needs_update = 1;
     }
 }
 
-void trigger_transition() {
-    morph_factor = 0.0f;
-    last_morph_time = glfwGetTime(); // Nur hier gesetzt, nicht im Loop-Delta
-    needs_update = 1;
-}
-
-void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     (void)scancode;
     (void)mods;
-
-    // Wir reagieren nur auf den ersten Tastendruck
     if (action != GLFW_PRESS) return;
+
+    AppState* s = glfwGetWindowUserPointer(window);
 
     // --- PROGRAMM-STEUERUNG ---
     if (key == GLFW_KEY_Q) glfwSetWindowShouldClose(window, GLFW_TRUE);
     if (key == GLFW_KEY_H) {
-        show_ui = !show_ui;
-        printf("\033[1;34m[UI]\033[0m %s\n", show_ui ? "eingeblendet" : "ausgeblendet");
+        s->show_ui = !s->show_ui;
+        printf("\033[1;34m[UI]\033[0m %s\n", s->show_ui ? "eingeblendet" : "ausgeblendet");
     }
 
     // --- MODUS-WECHSEL (2D / 3D) ---
     if (key == GLFW_KEY_SPACE) {
-        cam.mode_3d = !cam.mode_3d;
-        needs_update = 1; // Nur Kamera-Update, kein Morphing nötig
-        printf("\033[1;34m[Kamera]\033[0m %s\n", cam.mode_3d ? "Perspektivisch" : "Orthografisch");
+        s->cam.mode_3d  = !s->cam.mode_3d;
+        s->needs_update = 1;
+        printf("\033[1;34m[Kamera]\033[0m %s\n", s->cam.mode_3d ? "Perspektivisch" : "Orthografisch");
     }
 
     if (key == GLFW_KEY_P) {
-        proj_from = proj_to;
-        proj_to = !proj_to;
-        trigger_transition(); // Startet Morphing der Punkte
-        printf("\033[1;34m[Projektion]\033[0m %s\n", proj_to ? "AN" : "AUS");
+        s->proj_from = s->proj_to;
+        s->proj_to   = !s->proj_to;
+        trigger_transition(s);
+        printf("\033[1;34m[Projektion]\033[0m %s\n", s->proj_to ? "AN" : "AUS");
     }
 
     if (key == GLFW_KEY_1 || key == GLFW_KEY_2 || key == GLFW_KEY_3) {
-        current_view = (key == GLFW_KEY_1) ? 0 : (key == GLFW_KEY_2 ? 1 : 2);
-        camera_set_view(&cam, current_view); // Kamera ausrichten
+        s->current_view = (key == GLFW_KEY_1) ? 0 : (key == GLFW_KEY_2 ? 1 : 2);
+        camera_set_view(&s->cam, s->current_view);
 
-        if (proj_to) {
-            proj_from = proj_to; // Bleibe in Projektion
-            trigger_transition(); // Nur morphen, wenn Projektion aktiv ist
+        if (s->proj_to) {
+            s->proj_from = s->proj_to;
+            trigger_transition(s);
         } else {
-            needs_update = 1;
+            s->needs_update = 1;
         }
     }
 
@@ -161,51 +148,56 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
     if (key == GLFW_KEY_K || key == GLFW_KEY_Z || key == GLFW_KEY_S) {
         int target_sys = (key == GLFW_KEY_K) ? 0 : (key == GLFW_KEY_Z ? 1 : 2);
 
-        if (coord_system_to != target_sys) {
-            coord_system_from = coord_system_to;
-            coord_system_to = target_sys;
-            proj_from = proj_to; // Aktuellen Projektionszustand beibehalten
-            trigger_transition(); // Morph zwischen den Systemen
+        if (s->coord_system_to != target_sys) {
+            s->coord_system_from = s->coord_system_to;
+            s->coord_system_to   = target_sys;
+            s->proj_from         = s->proj_to;
+            trigger_transition(s);
 
             const char* names[] = {"Kartesisch", "Zylindrisch", "Sphärisch"};
-            printf("\033[1;34m[System]\033[0m %s -> %s\n", names[coord_system_from], names[coord_system_to]);
+            printf("\033[1;34m[System]\033[0m %s -> %s\n",
+                   names[s->coord_system_from], names[s->coord_system_to]);
         }
     }
 
-
     // --- KAMERA & DARSTELLUNG ---
     if (key == GLFW_KEY_R) {
-        camera_reset(&cam); // Setzt Orientierung und Zoom zurück
-        trigger_transition();
+        camera_reset(&s->cam);
+        trigger_transition(s);
         printf("\033[1;34m[Reset]\033[0m Kamera zurückgesetzt.\n");
     }
 
     if (key == GLFW_KEY_TAB) {
-        colormap_idx = (colormap_idx + 1) % 3;
+        s->colormap_idx = (s->colormap_idx + 1) % 3;
         const char* names[] = {"Matrix", "Turbo", "Viridis"};
-        printf("\033[1;34m[Farbe]\033[0m Colormap: %s\n", names[colormap_idx]);
-        needs_update = 1;
+        printf("\033[1;34m[Farbe]\033[0m Colormap: %s\n", names[s->colormap_idx]);
+        s->needs_update = 1;
     }
 
     if (key == GLFW_KEY_M) {
-        if (hist.points != NULL) {
-            use_histogram = !use_histogram;
-            needs_update = 1;
-            printf("\033[1;34m[Modus]\033[0m %s\n", use_histogram ? "3D-Histogramm (Voxel)" : "Sequenziell (Rohdaten)");
+        if (s->hist.points != NULL) {
+            s->use_histogram = !s->use_histogram;
+            s->needs_update  = 1;
+            printf("\033[1;34m[Modus]\033[0m %s\n",
+                   s->use_histogram ? "3D-Histogramm (Voxel)" : "Sequenziell (Rohdaten)");
         } else {
             printf("\033[1;31m[Fehler]\033[0m Histogramm nicht verfügbar.\n");
         }
     }
 
     if (key == GLFW_KEY_EQUAL || key == GLFW_KEY_KP_ADD) {
-        point_size = (point_size < 4.0f) ? point_size + 0.5f : 4.0f;
-        needs_update = 1;
+        s->point_size   = (s->point_size < 4.0f) ? s->point_size + 0.5f : 4.0f;
+        s->needs_update = 1;
     }
     if (key == GLFW_KEY_MINUS || key == GLFW_KEY_KP_SUBTRACT) {
-        point_size = (point_size > 1.0f) ? point_size - 0.5f : 1.0f;
-        needs_update = 1;
+        s->point_size   = (s->point_size > 1.0f) ? s->point_size - 0.5f : 1.0f;
+        s->needs_update = 1;
     }
 }
+
+// ---------------------------------------------------------------------------
+// main
+// ---------------------------------------------------------------------------
 
 int main(int argc, char** argv) {
     if (!glfwInit()) return -1;
@@ -214,51 +206,70 @@ int main(int argc, char** argv) {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* window = glfwCreateWindow(current_width, current_height, "Cortex - Binary Visualizer", NULL, NULL);
+    // State initialisieren (alle Felder auf Null/Default)
+    AppState state = {
+        .width          = 1024,
+        .height         = 1024,
+        .needs_update   = 1,
+        .exposure       = 1.0f,
+        .offset         = 0.5f,
+        .point_size     = 1.0f,
+        .colormap_idx   = 0,
+        .use_histogram  = 0,
+        .morph_factor   = 1.0f,
+        .morph_duration = 2.0f,
+        .show_ui        = 1,
+        .hist           = {NULL, 0, 0},
+    };
+    camera_init(&state.cam);
+
+    GLFWwindow* window = glfwCreateWindow(state.width, state.height,
+                                          "Cortex - Binary Visualizer", NULL, NULL);
     if (!window) {
         glfwTerminate();
         return -1;
     }
     glfwMakeContextCurrent(window);
 
-    camera_init(&cam);
+    // State-Pointer ins Fenster hängen → Callbacks können ihn abrufen
+    glfwSetWindowUserPointer(window, &state);
 
-    glfwSetScrollCallback(window, scroll_callback);
-    glfwSetKeyCallback(window, key_callback);
-    glfwSetMouseButtonCallback(window, mouse_button_callback);
-    glfwSetCursorPosCallback(window, cursor_pos_callback);
+    glfwSetScrollCallback(window,       scroll_callback);
+    glfwSetKeyCallback(window,          key_callback);
+    glfwSetMouseButtonCallback(window,  mouse_button_callback);
+    glfwSetCursorPosCallback(window,    cursor_pos_callback);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) return -1;
 
-    GLuint accProgram  = create_shader_program_from_source(core_default_vert_source, core_default_frag_source);
-    GLuint quadProgram = create_shader_program_from_source(quad_quad_vert_source,    quad_quad_frag_source);
-    GLuint uiProgram   = create_shader_program_from_source(ui_ui_vert_source,        ui_ui_frag_source);
+    state.acc_program  = create_shader_program_from_source(core_default_vert_source, core_default_frag_source);
+    state.quad_program = create_shader_program_from_source(quad_quad_vert_source,    quad_quad_frag_source);
+    state.ui_program   = create_shader_program_from_source(ui_ui_vert_source,        ui_ui_frag_source);
 
-    if (!accProgram || !quadProgram || !uiProgram) {
+    if (!state.acc_program || !state.quad_program || !state.ui_program) {
         fprintf(stderr, "[Fehler] Shader-Kompilierung fehlgeschlagen.\n");
         glfwTerminate();
         return -1;
     }
 
-    // Uniform Locations einmalig cachen (Fix: kein glGetUniformLocation im Render-Loop)
-    GLint uloc_mvp          = glGetUniformLocation(accProgram, "mvp");
-    GLint uloc_cs_from      = glGetUniformLocation(accProgram, "coord_system_from");
-    GLint uloc_cs_to        = glGetUniformLocation(accProgram, "coord_system_to");
-    GLint uloc_morph        = glGetUniformLocation(accProgram, "morph_factor");
-    GLint uloc_proj_view    = glGetUniformLocation(accProgram, "projection_view");
-    GLint uloc_point_size   = glGetUniformLocation(accProgram, "u_point_size");
-    GLint uloc_proj_from    = glGetUniformLocation(accProgram, "u_proj_from");
-    GLint uloc_proj_to      = glGetUniformLocation(accProgram, "u_proj_to");
-    GLint uloc_use_hist     = glGetUniformLocation(accProgram, "u_use_histogram");
-    GLint uloc_raw_data     = glGetUniformLocation(accProgram, "raw_data");
+    // Uniform Locations einmalig cachen
+    state.uloc_mvp        = glGetUniformLocation(state.acc_program, "mvp");
+    state.uloc_cs_from    = glGetUniformLocation(state.acc_program, "coord_system_from");
+    state.uloc_cs_to      = glGetUniformLocation(state.acc_program, "coord_system_to");
+    state.uloc_morph      = glGetUniformLocation(state.acc_program, "morph_factor");
+    state.uloc_proj_view  = glGetUniformLocation(state.acc_program, "projection_view");
+    state.uloc_point_size = glGetUniformLocation(state.acc_program, "u_point_size");
+    state.uloc_proj_from  = glGetUniformLocation(state.acc_program, "u_proj_from");
+    state.uloc_proj_to    = glGetUniformLocation(state.acc_program, "u_proj_to");
+    state.uloc_use_hist   = glGetUniformLocation(state.acc_program, "u_use_histogram");
+    state.uloc_raw_data   = glGetUniformLocation(state.acc_program, "raw_data");
 
-    GLint uloc_q_exposure   = glGetUniformLocation(quadProgram, "exposure");
-    GLint uloc_q_offset     = glGetUniformLocation(quadProgram, "offset");
-    GLint uloc_q_colormap   = glGetUniformLocation(quadProgram, "colormap_idx");
-    GLint uloc_q_screen_tex = glGetUniformLocation(quadProgram, "screenTexture");
+    state.uloc_q_exposure   = glGetUniformLocation(state.quad_program, "exposure");
+    state.uloc_q_offset     = glGetUniformLocation(state.quad_program, "offset");
+    state.uloc_q_colormap   = glGetUniformLocation(state.quad_program, "colormap_idx");
+    state.uloc_q_screen_tex = glGetUniformLocation(state.quad_program, "screenTexture");
 
-    GLint uloc_ui_colormap  = glGetUniformLocation(uiProgram, "colormap_idx");
+    state.uloc_ui_colormap  = glGetUniformLocation(state.ui_program, "colormap_idx");
 
     if (argc < 2) {
         fprintf(stderr, "\033[1;36mCortex Binary Visualizer\033[0m\n");
@@ -288,41 +299,42 @@ int main(int argc, char** argv) {
         return -1;
     }
 
-    // Histogramm berechnen (Cortex-Mode)
-    hist = calculate_histogram(mf.data, mf.size);
-    if (hist.points) {
-        glGenVertexArrays(1, &hist_vao);
-        glGenBuffers(1, &hist_vbo);
-        glBindVertexArray(hist_vao);
-        glBindBuffer(GL_ARRAY_BUFFER, hist_vbo);
-        glBufferData(GL_ARRAY_BUFFER, hist.num_points * sizeof(HistogramPoint), hist.points, GL_STATIC_DRAW);
+    // Histogramm berechnen
+    state.hist = calculate_histogram(mf.data, mf.size);
+    if (state.hist.points) {
+        glGenVertexArrays(1, &state.hist_vao);
+        glGenBuffers(1, &state.hist_vbo);
+        glBindVertexArray(state.hist_vao);
+        glBindBuffer(GL_ARRAY_BUFFER, state.hist_vbo);
+        glBufferData(GL_ARRAY_BUFFER, state.hist.num_points * sizeof(HistogramPoint),
+                     state.hist.points, GL_STATIC_DRAW);
 
-        // Attribute 0: vec3 aPos (x, y, z als uint8_t, im Shader / 255.0)
         glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(HistogramPoint), (void*)0);
-        // Attribute 1: float aCount (Häufigkeit)
+        glVertexAttribPointer(0, 3, GL_UNSIGNED_BYTE, GL_FALSE,
+                              sizeof(HistogramPoint), (void*)0);
         glEnableVertexAttribArray(1);
-        glVertexAttribPointer(1, 1, GL_UNSIGNED_INT, GL_FALSE, sizeof(HistogramPoint), (void*)offsetof(HistogramPoint, count));
+        glVertexAttribPointer(1, 1, GL_UNSIGNED_INT, GL_FALSE,
+                              sizeof(HistogramPoint), (void*)offsetof(HistogramPoint, count));
 
-        // Automatisch in Histogramm-Modus wechseln bei großen Dateien (> 20MB)
         if (mf.size > 20 * 1024 * 1024) {
-            use_histogram = 1;
+            state.use_histogram = 1;
             printf("\033[1;34m[Cortex]\033[0m Große Datei erkannt, Histogramm-Modus aktiviert.\n");
         }
     }
 
-    GLuint tbo_buffer, tbo_tex;
-    glGenBuffers(1, &tbo_buffer);
-    glBindBuffer(GL_TEXTURE_BUFFER, tbo_buffer);
+    // TBO für Rohdaten
+    glGenBuffers(1, &state.tbo_buffer);
+    glBindBuffer(GL_TEXTURE_BUFFER, state.tbo_buffer);
     glBufferData(GL_TEXTURE_BUFFER, mf.size, mf.data, GL_STATIC_DRAW);
 
-    glGenTextures(1, &tbo_tex);
-    glBindTexture(GL_TEXTURE_BUFFER, tbo_tex);
-    glTexBuffer(GL_TEXTURE_BUFFER, GL_R8UI, tbo_buffer);
+    glGenTextures(1, &state.tbo_tex);
+    glBindTexture(GL_TEXTURE_BUFFER, state.tbo_tex);
+    glTexBuffer(GL_TEXTURE_BUFFER, GL_R8UI, state.tbo_buffer);
 
-    GLuint VAO;
-    glGenVertexArrays(1, &VAO);
+    // Leeres VAO für TBO-Rendering
+    glGenVertexArrays(1, &state.vao);
 
+    // Fullscreen-Quad
     float quadVertices[] = {
         -1.0f,  1.0f,  0.0f, 1.0f,
         -1.0f, -1.0f,  0.0f, 0.0f,
@@ -332,18 +344,17 @@ int main(int argc, char** argv) {
          1.0f, -1.0f,  1.0f, 0.0f,
          1.0f,  1.0f,  1.0f, 1.0f
     };
-    GLuint quadVAO, quadVBO;
-    glGenVertexArrays(1, &quadVAO);
-    glGenBuffers(1, &quadVBO);
-    glBindVertexArray(quadVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+    glGenVertexArrays(1, &state.quad_vao);
+    glGenBuffers(1, &state.quad_vbo);
+    glBindVertexArray(state.quad_vao);
+    glBindBuffer(GL_ARRAY_BUFFER, state.quad_vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
 
-    // UI VAO für die Skala (Rechter Rand)
+    // UI-Skalen-Quad (rechter Rand)
     float uiVertices[] = {
         0.85f,  0.8f,  0.0f, 1.0f,
         0.85f, -0.8f,  0.0f, 0.0f,
@@ -353,86 +364,85 @@ int main(int argc, char** argv) {
         0.95f, -0.8f,  1.0f, 0.0f,
         0.95f,  0.8f,  1.0f, 1.0f
     };
-    GLuint uiVAO, uiVBO;
-    glGenVertexArrays(1, &uiVAO);
-    glGenBuffers(1, &uiVBO);
-    glBindVertexArray(uiVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, uiVBO);
+    glGenVertexArrays(1, &state.ui_vao);
+    glGenBuffers(1, &state.ui_vbo);
+    glBindVertexArray(state.ui_vao);
+    glBindBuffer(GL_ARRAY_BUFFER, state.ui_vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(uiVertices), &uiVertices, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
 
-    // Initiales FBO Setup
-    setup_fbo(&fbo, &accTex, current_width, current_height);
+    setup_fbo(&state.fbo, &state.acc_tex, state.width, state.height);
 
     glEnable(GL_PROGRAM_POINT_SIZE);
-
     text_renderer_init();
 
-    last_frame_time = glfwGetTime();
+    state.last_frame_time = glfwGetTime();
 
+    // -----------------------------------------------------------------------
+    // Render-Loop
+    // -----------------------------------------------------------------------
     while (!glfwWindowShouldClose(window)) {
         double current_time = glfwGetTime();
-        float dt = (float)(current_time - last_frame_time);
-        last_frame_time = current_time;
+        float dt = (float)(current_time - state.last_frame_time);
+        state.last_frame_time = current_time;
 
-        if (morph_factor < 1.0f) {
-            morph_factor += dt / morph_duration;
-            if (morph_factor >= 1.0f) {
-                morph_factor = 1.0f;
-                coord_system_from = coord_system_to;
+        if (state.morph_factor < 1.0f) {
+            state.morph_factor += dt / state.morph_duration;
+            if (state.morph_factor >= 1.0f) {
+                state.morph_factor       = 1.0f;
+                state.coord_system_from  = state.coord_system_to;
             }
-            needs_update = 1;
+            state.needs_update = 1;
         }
 
-        if (cam.anim_factor < 1.0f) {
-            cam.anim_factor += dt / 0.5f;
-            if (cam.anim_factor >= 1.0f) {
-                cam.anim_factor = 1.0f;
-                glm_quat_copy(cam.target_orientation, cam.orientation);
+        if (state.cam.anim_factor < 1.0f) {
+            state.cam.anim_factor += dt / 0.5f;
+            if (state.cam.anim_factor >= 1.0f) {
+                state.cam.anim_factor = 1.0f;
+                glm_quat_copy(state.cam.target_orientation, state.cam.orientation);
             }
-            needs_update = 1;
+            state.needs_update = 1;
         }
 
-        if (needs_update) {
+        if (state.needs_update) {
             int screenW, screenH;
             glfwGetFramebufferSize(window, &screenW, &screenH);
-            cam.aspect = (float)screenW / (float)screenH;
+            state.cam.aspect = (float)screenW / (float)screenH;
 
             mat4 mvp;
-            camera_get_mvp(&cam, mvp);
+            camera_get_mvp(&state.cam, mvp);
 
-            glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-            glViewport(0, 0, current_width, current_height);
+            glBindFramebuffer(GL_FRAMEBUFFER, state.fbo);
+            glViewport(0, 0, state.width, state.height);
             glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
 
             glEnable(GL_BLEND);
             glBlendFunc(GL_ONE, GL_ONE);
 
-            glUseProgram(accProgram);
-            glUniformMatrix4fv(uloc_mvp,        1, GL_FALSE, (float*)mvp);
-            glUniform1i(uloc_cs_from,    coord_system_from);
-            glUniform1i(uloc_cs_to,      coord_system_to);
-            glUniform1f(uloc_morph,      morph_factor);
-            glUniform1i(uloc_proj_view,  current_view);
-            glUniform1f(uloc_point_size, point_size);
-            glUniform1i(uloc_proj_from,  proj_from);
-            glUniform1i(uloc_proj_to,    proj_to);
-            glUniform1i(uloc_use_hist,   use_histogram);
+            glUseProgram(state.acc_program);
+            glUniformMatrix4fv(state.uloc_mvp,        1, GL_FALSE, (float*)mvp);
+            glUniform1i(state.uloc_cs_from,    state.coord_system_from);
+            glUniform1i(state.uloc_cs_to,      state.coord_system_to);
+            glUniform1f(state.uloc_morph,      state.morph_factor);
+            glUniform1i(state.uloc_proj_view,  state.current_view);
+            glUniform1f(state.uloc_point_size, state.point_size);
+            glUniform1i(state.uloc_proj_from,  state.proj_from);
+            glUniform1i(state.uloc_proj_to,    state.proj_to);
+            glUniform1i(state.uloc_use_hist,   state.use_histogram);
 
-            if (use_histogram) {
-                glBindVertexArray(hist_vao);
-                glDrawArrays(GL_POINTS, 0, (GLsizei)hist.num_points);
+            if (state.use_histogram) {
+                glBindVertexArray(state.hist_vao);
+                glDrawArrays(GL_POINTS, 0, (GLsizei)state.hist.num_points);
             } else {
                 glActiveTexture(GL_TEXTURE0);
-                glBindTexture(GL_TEXTURE_BUFFER, tbo_tex);
-                glUniform1i(uloc_raw_data, 0);
+                glBindTexture(GL_TEXTURE_BUFFER, state.tbo_tex);
+                glUniform1i(state.uloc_raw_data, 0);
 
-                glBindVertexArray(VAO);
-                // Immer Trigramme zeichnen (3 Bytes pro Punkt)
+                glBindVertexArray(state.vao);
                 GLsizei count = (mf.size > 2) ? (GLsizei)(mf.size - 2) : 0;
                 if (count > 0) {
                     glDrawArrays(GL_POINTS, 0, count);
@@ -441,7 +451,7 @@ int main(int argc, char** argv) {
 
             glDisable(GL_BLEND);
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
-            needs_update = 0;
+            state.needs_update = 0;
         }
 
         int screenW, screenH;
@@ -449,35 +459,34 @@ int main(int argc, char** argv) {
         glViewport(0, 0, screenW, screenH);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        glUseProgram(quadProgram);
-        glUniform1f(uloc_q_exposure,  exposure);
-        glUniform1f(uloc_q_offset,    offset);
-        glUniform1i(uloc_q_colormap,  colormap_idx);
+        glUseProgram(state.quad_program);
+        glUniform1f(state.uloc_q_exposure,  state.exposure);
+        glUniform1f(state.uloc_q_offset,    state.offset);
+        glUniform1i(state.uloc_q_colormap,  state.colormap_idx);
 
-        glBindVertexArray(quadVAO);
+        glBindVertexArray(state.quad_vao);
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, accTex);
-        glUniform1i(uloc_q_screen_tex, 0);
+        glBindTexture(GL_TEXTURE_2D, state.acc_tex);
+        glUniform1i(state.uloc_q_screen_tex, 0);
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
-        if (show_ui) {
-            glUseProgram(uiProgram);
-            glUniform1i(uloc_ui_colormap, colormap_idx);
-            glBindVertexArray(uiVAO);
+        if (state.show_ui) {
+            glUseProgram(state.ui_program);
+            glUniform1i(state.uloc_ui_colormap, state.colormap_idx);
+            glBindVertexArray(state.ui_vao);
             glDrawArrays(GL_TRIANGLES, 0, 6);
 
-            // Text HUD
-            vec3 textColor = {0.0f, 1.0f, 0.0f}; // Matrix Green
+            vec3 textColor = {0.0f, 1.0f, 0.0f};
             char buf[128];
             const char* sys_names[] = {"Kartesisch", "Zylindrisch", "Sphärisch"};
 
-            snprintf(buf, sizeof(buf), "System: %s", sys_names[coord_system_to]);
+            snprintf(buf, sizeof(buf), "System: %s", sys_names[state.coord_system_to]);
             text_renderer_render(buf, 20.0f, 40.0f, 0.6f, textColor, screenW, screenH);
 
-            snprintf(buf, sizeof(buf), "Modus:  %s", cam.mode_3d ? "3D (Persp)" : "2D (Ortho)");
+            snprintf(buf, sizeof(buf), "Modus:  %s", state.cam.mode_3d ? "3D (Persp)" : "2D (Ortho)");
             text_renderer_render(buf, 20.0f, 70.0f, 0.6f, textColor, screenW, screenH);
 
-            snprintf(buf, sizeof(buf), "Proj:   %s", proj_to ? "AN" : "AUS");
+            snprintf(buf, sizeof(buf), "Proj:   %s", state.proj_to ? "AN" : "AUS");
             text_renderer_render(buf, 20.0f, 100.0f, 0.6f, textColor, screenW, screenH);
         }
 
@@ -485,23 +494,31 @@ int main(int argc, char** argv) {
         glfwPollEvents();
     }
 
+    // -----------------------------------------------------------------------
+    // Cleanup
+    // -----------------------------------------------------------------------
     unmap_file(mf);
-    free_histogram(hist);
+    free_histogram(state.hist);
     text_renderer_cleanup();
-    if (hist_vao) glDeleteVertexArrays(1, &hist_vao);
-    if (hist_vbo) glDeleteBuffers(1, &hist_vbo);
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteVertexArrays(1, &quadVAO);
-    glDeleteBuffers(1, &quadVBO);
-    glDeleteVertexArrays(1, &uiVAO);
-    glDeleteBuffers(1, &uiVBO);
-    glDeleteBuffers(1, &tbo_buffer);
-    glDeleteTextures(1, &tbo_tex);
-    if (fbo)    glDeleteFramebuffers(1, &fbo);
-    if (accTex) glDeleteTextures(1, &accTex);
-    glDeleteProgram(accProgram);
-    glDeleteProgram(quadProgram);
-    glDeleteProgram(uiProgram);
+
+    if (state.hist_vao) glDeleteVertexArrays(1, &state.hist_vao);
+    if (state.hist_vbo) glDeleteBuffers(1,    &state.hist_vbo);
+
+    glDeleteVertexArrays(1, &state.vao);
+    glDeleteVertexArrays(1, &state.quad_vao);
+    glDeleteBuffers(1,      &state.quad_vbo);
+    glDeleteVertexArrays(1, &state.ui_vao);
+    glDeleteBuffers(1,      &state.ui_vbo);
+    glDeleteBuffers(1,      &state.tbo_buffer);
+    glDeleteTextures(1,     &state.tbo_tex);
+
+    if (state.fbo)     glDeleteFramebuffers(1, &state.fbo);
+    if (state.acc_tex) glDeleteTextures(1,     &state.acc_tex);
+
+    glDeleteProgram(state.acc_program);
+    glDeleteProgram(state.quad_program);
+    glDeleteProgram(state.ui_program);
+
     glfwTerminate();
     return 0;
 }

@@ -63,6 +63,8 @@ static void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) 
 
     int ctrl_pressed = glfwGetKey(window, GLFW_KEY_LEFT_CONTROL)  == GLFW_PRESS ||
                        glfwGetKey(window, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS;
+    int alt_pressed  = glfwGetKey(window, GLFW_KEY_LEFT_ALT)      == GLFW_PRESS ||
+                       glfwGetKey(window, GLFW_KEY_RIGHT_ALT)     == GLFW_PRESS;
 
     if (ctrl_pressed) {
         if (yoffset > 0) s->offset *= 1.1f;
@@ -70,6 +72,11 @@ static void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) 
         if (s->offset < 0.00001f) s->offset = 0.00001f;
         if (s->offset > 10.0f)    s->offset = 10.0f;
         printf("Offset: %.6f\n", s->offset);
+    } else if (alt_pressed) {
+        double mx, my;
+        glfwGetCursorPos(window, &mx, &my);
+        camera_zoom_to_mouse(&s->cam, (float)yoffset, (float)mx, (float)my, s->width, s->height);
+        s->needs_update = 1;
     } else {
         camera_zoom(&s->cam, (float)yoffset);
         s->needs_update = 1;
@@ -285,7 +292,8 @@ int main(int argc, char** argv) {
         fprintf(stderr, "  \033[1;32m+ / -\033[0m       - Punktgröße anpassen (1.0 - 4.0)\n");
         fprintf(stderr, "  \033[1;32mq\033[0m           - Programm beenden\n\n");
         fprintf(stderr, "\033[1;33mMaus:\033[0m\n");
-        fprintf(stderr, "  Scrollen    - Zoom\n");
+        fprintf(stderr, "  Scrollen    - Zoom (Zentrum)\n");
+        fprintf(stderr, "  ALT+Scroll  - Zoom (Mausposition)\n");
         fprintf(stderr, "  STRG+Scroll - Kontrast / Rauschfilter (Offset)\n");
         fprintf(stderr, "  Links-Klick - Kamera rotieren\n\n");
         glfwTerminate();
@@ -403,6 +411,7 @@ int main(int argc, char** argv) {
             if (state.cam.anim_factor >= 1.0f) {
                 state.cam.anim_factor = 1.0f;
                 glm_quat_copy(state.cam.target_orientation, state.cam.orientation);
+                glm_vec3_copy(state.cam.target_look_at, state.cam.look_at);
             }
             state.needs_update = 1;
         }

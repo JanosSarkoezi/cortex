@@ -95,6 +95,14 @@
     - **Build-System**: Vereinfachung der `meson.build`. Neue Shader werden nun automatisch erkannt und eingebettet, ohne dass die Build-Dateien händisch angepasst werden müssen.
     - **Konsistenz**: Vereinheitlichung der Skript-Berechtigungen im `scripts/` Verzeichnis (non-executable, da Aufruf via Python-Interpreter).
 
+### 2026-05-23
+- **Refactoring-Evaluierung**: Umfassende Analyse der von Claude durchgeführten Architektur-Anpassungen.
+    - **Architektur**: Zentralisierung des Zustands in `AppState` und konsequente Modularisierung (`camera`, `text_renderer`, `histogram`).
+    - **Performance**: Implementierung eines Hybrid-Renderings. Der Akkumulations-Pass schreibt in einen FBO, was die Interaktion (Maus/Zoom) bei Millionen von Punkten entkoppelt und flüssig hält.
+    - **Mathematik**: Vollständige Umstellung auf Quaternions zur Vermeidung von Gimbal-Lock und für weiche Slerp-Animationen. Korrektur der Koordinatentransformationen für homogene Punktverteilung.
+    - **Infrastruktur**: Automatisierung des Shader-Embeddings via Python-Build-Skripte erhöht die Portabilität.
+- **Status**: Die Codebase ist nun auf einem professionellen Stand, extrem performant und bereit für fortgeschrittene Analyse-Features.
+
 ## Technische Details (Wissensbasis)
 - **Shader**: `core/default.vert` (Punkt-Generierung), `quad/quad.frag` (Post-Processing & Kontrast).
 - **Datenstruktur**: `R8UI` für Rohdaten (TBO), `R32F` für Akkumulations-Textur (FBO), um hohe Zählwerte ohne Überlauf zu speichern.

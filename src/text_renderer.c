@@ -67,7 +67,8 @@ void text_renderer_render(const char* text, float x, float y, float scale, vec3 
     size_t len = strlen(text);
     if (len > 1024) len = 1024;
 
-    float* vertices = malloc(sizeof(float) * 4 * 6 * len);
+    // Statischer Buffer – kein heap alloc im Render-Loop nötig
+    float vertices[4 * 6 * 1024];
     int vertex_count = 0;
 
     float curr_x = x;
@@ -103,7 +104,6 @@ void text_renderer_render(const char* text, float x, float y, float scale, vec3 
     glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(float) * 4 * vertex_count, vertices);
     glDrawArrays(GL_TRIANGLES, 0, vertex_count);
 
-    free(vertices);
     glBindVertexArray(0);
 }
 

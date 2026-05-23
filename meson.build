@@ -22,9 +22,13 @@ font_gen = custom_target('font_embedding',
 )
 
 # --- 2. Abhängigkeiten (Statisch erzwingen) ---
-# ... (rest unchanged)
+# cglm: als Subprojekt einbinden, Installation explizit deaktivieren
 glfw_dep = dependency('glfw3', static : true, fallback : ['glfw', 'glfw_dep'])
-cglm_dep = dependency('cglm', static : true, fallback : ['cglm', 'cglm_dep'])
+cglm_dep = dependency('cglm',
+  static  : true,
+  fallback : ['cglm', 'cglm_dep'],
+  default_options : ['install=false']
+)
 
 # OpenGL muss unter Linux fast immer dynamisch bleiben
 gl_dep = dependency('gl')
@@ -51,10 +55,10 @@ sources = [
 # --- 3. Executable erstellen ---
 executable('cortex',
   sources,
-  [shaders_gen, font_gen], # Hier die Abhängigkeiten zu den generierten Dateien
+  [shaders_gen, font_gen],
   link_with : glad_res,
   dependencies : [glfw_dep, cglm_dep, gl_dep, dl_dep],
   include_directories : inc,
-  install : true,
+  install : false,
   link_args : ['-static-libgcc']
 )

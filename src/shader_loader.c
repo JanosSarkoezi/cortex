@@ -27,6 +27,12 @@ GLuint create_shader_program_from_source(const char* vertexSource, const char* f
     GLuint vertexShader = compile_shader(GL_VERTEX_SHADER, vertexSource);
     GLuint fragmentShader = compile_shader(GL_FRAGMENT_SHADER, fragmentSource);
 
+    if (!vertexShader || !fragmentShader) {
+        if (vertexShader)  glDeleteShader(vertexShader);
+        if (fragmentShader) glDeleteShader(fragmentShader);
+        return 0;
+    }
+
     GLuint shaderProgram = glCreateProgram();
     glAttachShader(shaderProgram, vertexShader);
     glAttachShader(shaderProgram, fragmentShader);

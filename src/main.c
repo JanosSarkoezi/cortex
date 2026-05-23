@@ -61,6 +61,7 @@ int proj_to = 0;
 float morph_factor = 1.0f;
 float morph_duration = 2.0f;
 double last_morph_time = 0.0;
+double last_frame_time = 0.0;
 int show_ui = 1;
 int current_view = 0;
 Camera cam;
@@ -112,7 +113,7 @@ void cursor_pos_callback(GLFWwindow* window, double xpos, double ypos) {
 
 void trigger_transition() {
     morph_factor = 0.0f;
-    last_morph_time = glfwGetTime();
+    last_morph_time = glfwGetTime(); // Nur hier gesetzt, nicht im Loop-Delta
     needs_update = 1;
 }
 
@@ -230,9 +231,34 @@ int main(int argc, char** argv) {
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) return -1;
 
-    GLuint accProgram = create_shader_program_from_source(core_default_vert_source, core_default_frag_source);
-    GLuint quadProgram = create_shader_program_from_source(quad_quad_vert_source, quad_quad_frag_source);
-    GLuint uiProgram = create_shader_program_from_source(ui_ui_vert_source, ui_ui_frag_source);
+    GLuint accProgram  = create_shader_program_from_source(core_default_vert_source, core_default_frag_source);
+    GLuint quadProgram = create_shader_program_from_source(quad_quad_vert_source,    quad_quad_frag_source);
+    GLuint uiProgram   = create_shader_program_from_source(ui_ui_vert_source,        ui_ui_frag_source);
+
+    if (!accProgram || !quadProgram || !uiProgram) {
+        fprintf(stderr, "[Fehler] Shader-Kompilierung fehlgeschlagen.\n");
+        glfwTerminate();
+        return -1;
+    }
+
+    // Uniform Locations einmalig cachen (Fix: kein glGetUniformLocation im Render-Loop)
+    GLint uloc_mvp          = glGetUniformLocation(accProgram, "mvp");
+    GLint uloc_cs_from      = glGetUniformLocation(accProgram, "coord_system_from");
+    GLint uloc_cs_to        = glGetUniformLocation(accProgram, "coord_system_to");
+    GLint uloc_morph        = glGetUniformLocation(accProgram, "morph_factor");
+    GLint uloc_proj_view    = glGetUniformLocation(accProgram, "projection_view");
+    GLint uloc_point_size   = glGetUniformLocation(accProgram, "u_point_size");
+    GLint uloc_proj_from    = glGetUniformLocation(accProgram, "u_proj_from");
+    GLint uloc_proj_to      = glGetUniformLocation(accProgram, "u_proj_to");
+    GLint uloc_use_hist     = glGetUniformLocation(accProgram, "u_use_histogram");
+    GLint uloc_raw_data     = glGetUniformLocation(accProgram, "raw_data");
+
+    GLint uloc_q_exposure   = glGetUniformLocation(quadProgram, "exposure");
+    GLint uloc_q_offset     = glGetUniformLocation(quadProgram, "offset");
+    GLint uloc_q_colormap   = glGetUniformLocation(quadProgram, "colormap_idx");
+    GLint uloc_q_screen_tex = glGetUniformLocation(quadProgram, "screenTexture");
+
+    GLint uloc_ui_colormap  = glGetUniformLocation(uiProgram, "colormap_idx");
 
     if (argc < 2) {
         fprintf(stderr, "\033[1;36mCortex Binary Visualizer\033[0m\n");
@@ -345,10 +371,12 @@ int main(int argc, char** argv) {
 
     text_renderer_init();
 
+    last_frame_time = glfwGetTime();
+
     while (!glfwWindowShouldClose(window)) {
         double current_time = glfwGetTime();
-        float dt = (float)(current_time - last_morph_time);
-        last_morph_time = current_time;
+        float dt = (float)(current_time - last_frame_time);
+        last_frame_time = current_time;
 
         if (morph_factor < 1.0f) {
             morph_factor += dt / morph_duration;
@@ -385,16 +413,15 @@ int main(int argc, char** argv) {
             glBlendFunc(GL_ONE, GL_ONE);
 
             glUseProgram(accProgram);
-            glUniformMatrix4fv(glGetUniformLocation(accProgram, "mvp"), 1, GL_FALSE, (float*)mvp);
-
-            glUniform1i(glGetUniformLocation(accProgram, "coord_system_from"), coord_system_from);
-            glUniform1i(glGetUniformLocation(accProgram, "coord_system_to"), coord_system_to);
-            glUniform1f(glGetUniformLocation(accProgram, "morph_factor"), morph_factor);
-            glUniform1i(glGetUniformLocation(accProgram, "projection_view"), current_view);
-            glUniform1f(glGetUniformLocation(accProgram, "u_point_size"), point_size);
-            glUniform1i(glGetUniformLocation(accProgram, "u_proj_from"), proj_from);
-            glUniform1i(glGetUniformLocation(accProgram, "u_proj_to"), proj_to);
-            glUniform1i(glGetUniformLocation(accProgram, "u_use_histogram"), use_histogram);
+            glUniformMatrix4fv(uloc_mvp,        1, GL_FALSE, (float*)mvp);
+            glUniform1i(uloc_cs_from,    coord_system_from);
+            glUniform1i(uloc_cs_to,      coord_system_to);
+            glUniform1f(uloc_morph,      morph_factor);
+            glUniform1i(uloc_proj_view,  current_view);
+            glUniform1f(uloc_point_size, point_size);
+            glUniform1i(uloc_proj_from,  proj_from);
+            glUniform1i(uloc_proj_to,    proj_to);
+            glUniform1i(uloc_use_hist,   use_histogram);
 
             if (use_histogram) {
                 glBindVertexArray(hist_vao);
@@ -402,7 +429,7 @@ int main(int argc, char** argv) {
             } else {
                 glActiveTexture(GL_TEXTURE0);
                 glBindTexture(GL_TEXTURE_BUFFER, tbo_tex);
-                glUniform1i(glGetUniformLocation(accProgram, "raw_data"), 0);
+                glUniform1i(uloc_raw_data, 0);
 
                 glBindVertexArray(VAO);
                 // Immer Trigramme zeichnen (3 Bytes pro Punkt)
@@ -423,19 +450,19 @@ int main(int argc, char** argv) {
         glClear(GL_COLOR_BUFFER_BIT);
 
         glUseProgram(quadProgram);
-        glUniform1f(glGetUniformLocation(quadProgram, "exposure"), exposure);
-        glUniform1f(glGetUniformLocation(quadProgram, "offset"), offset);
-        glUniform1i(glGetUniformLocation(quadProgram, "colormap_idx"), colormap_idx);
+        glUniform1f(uloc_q_exposure,  exposure);
+        glUniform1f(uloc_q_offset,    offset);
+        glUniform1i(uloc_q_colormap,  colormap_idx);
 
         glBindVertexArray(quadVAO);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, accTex);
-        glUniform1i(glGetUniformLocation(quadProgram, "screenTexture"), 0);
+        glUniform1i(uloc_q_screen_tex, 0);
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
         if (show_ui) {
             glUseProgram(uiProgram);
-            glUniform1i(glGetUniformLocation(uiProgram, "colormap_idx"), colormap_idx);
+            glUniform1i(uloc_ui_colormap, colormap_idx);
             glBindVertexArray(uiVAO);
             glDrawArrays(GL_TRIANGLES, 0, 6);
 
@@ -443,14 +470,14 @@ int main(int argc, char** argv) {
             vec3 textColor = {0.0f, 1.0f, 0.0f}; // Matrix Green
             char buf[128];
             const char* sys_names[] = {"Kartesisch", "Zylindrisch", "Sphärisch"};
-            
-            sprintf(buf, "System: %s", sys_names[coord_system_to]);
+
+            snprintf(buf, sizeof(buf), "System: %s", sys_names[coord_system_to]);
             text_renderer_render(buf, 20.0f, 40.0f, 0.6f, textColor, screenW, screenH);
-            
-            sprintf(buf, "Modus:  %s", cam.mode_3d ? "3D (Persp)" : "2D (Ortho)");
+
+            snprintf(buf, sizeof(buf), "Modus:  %s", cam.mode_3d ? "3D (Persp)" : "2D (Ortho)");
             text_renderer_render(buf, 20.0f, 70.0f, 0.6f, textColor, screenW, screenH);
 
-            sprintf(buf, "Proj:   %s", proj_to ? "AN" : "AUS");
+            snprintf(buf, sizeof(buf), "Proj:   %s", proj_to ? "AN" : "AUS");
             text_renderer_render(buf, 20.0f, 100.0f, 0.6f, textColor, screenW, screenH);
         }
 
@@ -463,6 +490,18 @@ int main(int argc, char** argv) {
     text_renderer_cleanup();
     if (hist_vao) glDeleteVertexArrays(1, &hist_vao);
     if (hist_vbo) glDeleteBuffers(1, &hist_vbo);
+    glDeleteVertexArrays(1, &VAO);
+    glDeleteVertexArrays(1, &quadVAO);
+    glDeleteBuffers(1, &quadVBO);
+    glDeleteVertexArrays(1, &uiVAO);
+    glDeleteBuffers(1, &uiVBO);
+    glDeleteBuffers(1, &tbo_buffer);
+    glDeleteTextures(1, &tbo_tex);
+    if (fbo)    glDeleteFramebuffers(1, &fbo);
+    if (accTex) glDeleteTextures(1, &accTex);
+    glDeleteProgram(accProgram);
+    glDeleteProgram(quadProgram);
+    glDeleteProgram(uiProgram);
     glfwTerminate();
     return 0;
 }

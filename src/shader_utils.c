@@ -15,6 +15,8 @@ GLuint compile_shader(GLenum type, const char* source) {
     if (!success) {
         glGetShaderInfoLog(shader, 512, NULL, infoLog);
         fprintf(stderr, "ERROR::SHADER::COMPILATION_FAILED\n%s\n", infoLog);
+        glDeleteShader(shader);
+        return 0;
     }
     return shader;
 }
@@ -32,6 +34,14 @@ GLuint create_shader_program(const char* vertexPath, const char* fragmentPath) {
     GLuint fragmentShader = compile_shader(GL_FRAGMENT_SHADER, fragmentCode);
 
     // 3. Program erstellen und Linken
+    if (!vertexShader || !fragmentShader) {
+        if (vertexShader)  glDeleteShader(vertexShader);
+        if (fragmentShader) glDeleteShader(fragmentShader);
+        free(vertexCode);
+        free(fragmentCode);
+        return 0;
+    }
+
     GLuint shaderProgram = glCreateProgram();
     glAttachShader(shaderProgram, vertexShader);
     glAttachShader(shaderProgram, fragmentShader);
